@@ -52,7 +52,8 @@ totalMap = visibleMap | wallMap; % if obstacle occurs in either
 
 feasibleStates = zeros(ySize, xSize, numAngles);
 for i = 1:numAngles
-    feasibleStates(:,:,i) = conv2(double(totalMap), wheelchairShapeAngle(:,:,i), 'same');
+    normalizedWheelchair = wheelchairShapeAngle(:,:,i) ./sum(sum( wheelchairShapeAngle(:,:,i) ));
+    feasibleStates(:,:,i) = conv2(double(totalMap), normalizedWheelchair, 'same');
 end % for
 
 % ----------------------------------------
