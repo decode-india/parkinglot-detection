@@ -15,7 +15,7 @@ function makeFeasibleMap( occupancyMap )
     % ========================================
     figure;
     titlestringFunc = @(i) sprintf('wheelchair: %d degrees', angles(i));
-    plotAngles(wheelchair, titlestringFunc);
+    plotConfigurationSpace(wheelchair, titlestringFunc);
 
     % ========================================
     % 2. Generate wheelchairBlurred : blurred version of wheelchair
@@ -31,7 +31,7 @@ function makeFeasibleMap( occupancyMap )
     % ========================================
     figure;
     titlestringFunc = @(i) sprintf('wheelchairBlurred: %d degrees', angles(i));
-    plotAngles(wheelchairBlurred, titlestringFunc);
+    plotConfigurationSpace(wheelchairBlurred, titlestringFunc);
 
     % ========================================
     % 3. Generate occupancyMapBlurred : blurred version of occupancy map
@@ -51,29 +51,19 @@ function makeFeasibleMap( occupancyMap )
     % 4. Generate convolved
     % ========================================
     for i = 1:numAngles
-        feasibleMap(:,:,i) = conv2(occupancyMapBlurred, wheelchairBlurred(:,:,i), 'same');
+        feasibleStates(:,:,i) = conv2(occupancyMapBlurred, wheelchairBlurred(:,:,i), 'same');
     end % for
 
     % ========================================
     % Plot convolved
     % ========================================
     figure;
-    titlestringFunc = @(i) sprintf('feasibleMap: %d degrees', angles(i));
-    plotAngles(feasibleMap, titlestringFunc);
+    titlestringFunc = @(i) sprintf('feasibleStates: %d degrees', angles(i));
+    plotConfigurationSpace(feasibleStates, titlestringFunc);
 
     % ========================================
     % Stats
     % ========================================
-    percentLessThanOne = sum(feasibleMap(:) <= 1) / numel(feasibleMap)
-    
+    percentLessThanOne = sum(feasibleStates(:) <= 1) / numel(feasibleStates)
 
-end % function
-
-function plotAngles(imageStack, titlestringFunc)
-    for i = 1:9
-        subplot(3,3,i)
-        imshow(imageStack(:,:,i));
-        % imshow(imageStack(:,:,i), [], 'Colormap', jet(255));
-        title(titlestringFunc(i));
-    end
 end % function

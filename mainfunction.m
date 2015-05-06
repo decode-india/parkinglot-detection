@@ -14,50 +14,11 @@ depthFilename = fullfile(depthFolder, 'depth_1.jpg');
 % ----------------------------------------
 imRgb = imread(rgbFilename);
 imDepth = imread(depthFilename);
-isUpsideDown = true; 
-isMirrored = true;
-imDepthFlipped = flipImage(imDepth, isUpsideDown, isMirrored);
-imRgbFlipped = flipImage(imRgb, isUpsideDown, isMirrored);
-[pointcloudRaw, ~] = depthToCloud(imDepthFlipped);
 
-% ----------------------------------------
-% pointCloudVoxeled : downsampled
-% ----------------------------------------
-pointCloudObj = pointCloud(pointcloudRaw); % matlab pointcloud object
-gridStep = 2;
-pointCloudVoxeled = pcdownsample(pointCloudObj,'gridAverage',gridStep);
-% pointCloudVoxeled = pointCloudObj; % don't downsample
+% imRgbFlipped = flipImage(imRgb, isUpsideDown, isMirrored);
 
-% ----------------------------------------
-% pointCloudDenoised : removed noise
-% pointsT : transpose of pointCloudDenoised
-% ----------------------------------------
-% Extra points occur near the origin of the camera - remove them.
-radius = 10; % cm
-cameraPosition = [0 0 0];
-originIndicies = findNeighborsInRadius(pointCloudVoxeled, cameraPosition, radius);
-allIndicies = 1:pointCloudVoxeled.Count;
-pointCloudDenoised = select(pointCloudVoxeled, setdiff(allIndicies,originIndicies));
-pointsT = pointCloudDenoised.Location'; % 3xN
+[occupancyMap, groundMap, origin] = depthToOccupancyMap(imDepth);
 
-% ----------------------------------------
-% Rotate points to align ground plane to x-y plane
-% ----------------------------------------
-floorPlaneTolerance = 2; % tolerance in mm
-maxInclinationAngle = 40; % in degrees
-[updatedPlane, ~] = getGroundPlane(pointsT, maxInclinationAngle, floorPlaneTolerance);
-
-% transform the point cloud to a more pratical reference system ---
-% Ground is now x-y plane.
-[pointsTRotated,R,Rinv] = rotatePointCloud(pointsT, updatedPlane);
-oldOrigin = [0 0 0 1]';
-newOrigin = R*oldOrigin;
-
-pointCloudRotated = pointCloud(pointsTRotated');
-gridStepMap = 2;
-% groundMap: the visible ground
-% occupancyMap: what's occupied above ground
-[occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, gridStepMap, newOrigin);
 [ySize,xSize] = size(occupancyMap);
 
 % ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
