@@ -4,8 +4,8 @@ function plotConfigurationSpace(imageStack, titlestringFunc)
     plotCols = ceil(numAngles/plotRows);
     for i = 1:numAngles
         subplot(plotRows,plotCols,i)
-        imshow(imageStack(:,:,i));
-        % imshow(imageStack(:,:,i), [], 'Colormap', jet(255));
+        % imshow(imageStack(:,:,i));
+        imshow(imageStack(:,:,i), [], 'Colormap', parula);
         title(titlestringFunc(i));
     end
 end % function

@@ -50,9 +50,9 @@ visibleMap = imgaussfilt(groundMap) == 0;
 wallMap = imgaussfilt(occupancyMap) ~= 0; % >1 for noise robustness
 totalMap = visibleMap | wallMap; % if obstacle occurs in either
 
-permissibleMap = zeros(ySize, xSize, numAngles);
+feasibleStates = zeros(ySize, xSize, numAngles);
 for i = 1:numAngles
-    permissibleMap(:,:,i) = conv2(occupancyMap, wheelchairShapeAngle(:,:,i), 'same');
+    feasibleStates(:,:,i) = conv2(double(totalMap), wheelchairShapeAngle(:,:,i), 'same');
 end % for
 
 % ----------------------------------------
@@ -61,20 +61,16 @@ end % for
 % numAngles = size(wheelchairShapeAngle, 3);
 bestRow = -Inf;
 bestCol = -Inf;
-bestConfiguration = [];
-bestPotentialFunction = [];
-bestMaxPotential = -Inf;
+bestAngle = -Inf; % degrees
+potentialFunction = zeros(ySize, xSize, numAngles);
 for i = 1:numAngles
-    potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle(:,:,i));
-    maxPotential = max(potentialFunction(:));
-    [row, col] = find( potentialFunction >= maxPotential, 1, 'first' );
+    potentialFunction(:,:,i) = findPotentialFunction(totalMap, origin, wheelchairShapeAngle(:,:,i));
+    maxPotential = max(max(potentialFunction(:,:,i)));
+    [row, col] = find( potentialFunction(:,:,i) >= maxPotential, 1, 'first' );
     if maxPotential > bestMaxPotential
         bestRow = row;
         bestCol = col;
-        bestAngle = angles(i);
-        bestConfiguration = wheelchairShapeAngle(:,:,i);
-        bestMaxPotential = maxPotential;
-        bestPotentialFunction = potentialFunction;
+        bestAngle = i;
     end
 end % for
 
@@ -83,7 +79,7 @@ end % for
 % ----------------------------------------
 wheelChair = zeros(ySize,xSize);
 wheelChair(bestRow,bestCol) = 1;
-wheelChair = conv2(wheelChair, bestConfiguration, 'same') ~= 0;
+wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,bestAngle), 'same') ~= 0;
 ( sum(totalMap(wheelChair) == 1) == 0 ) % no collisions
 
 
@@ -94,17 +90,20 @@ wheelChair = conv2(wheelChair, bestConfiguration, 'same') ~= 0;
 % ========================================
 % Plot 
 % ========================================
-close all;
+% close all;
+% figure;
+% for i = 1:9
+%     subplot(3,3,i)
+%     x = zeros(size(feasibleStates,1),size(feasibleStates,2),3);
+%     x(:,:,1) = feasibleStates(:,:,i);
+%     x(:,:,3) = feasibleStates(:,:,i);
+%     imshow(x, [0 30])
+%     str = sprintf('Convolved at %d degrees', angles(i));
+%     title(str);
+% end
 figure;
-for i = 1:9
-    subplot(3,3,i)
-    x = zeros(size(permissibleMap,1),size(permissibleMap,2),3);
-    x(:,:,1) = permissibleMap(:,:,i);
-    x(:,:,3) = permissibleMap(:,:,i);
-    imshow(x, [0 30])
-    str = sprintf('Convolved at %d degrees', angles(i));
-    title(str);
-end
+titlestringFunc = @(i) sprintf('feasibleStates: %d degrees', angles(i));
+plotConfigurationSpace(feasibleStates, titlestringFunc);
 
 figure;
 subplot(2,2,1)
@@ -168,8 +167,9 @@ imshow(map2)
 title('Permissible Configurations');
 
 subplot(2,2,3)
-imshow(bestPotentialFunction, [], 'Colormap', parula)
+imshow(potentialFunction(:,:,bestAngle), [], 'Colormap', parula)
 title('Potential Function for Chosen Angle (Red is Better)');
+
 
 subplot(2,2,4)
 map3 = zeros(size(groundMap,1),size(groundMap,2),3);
@@ -181,3 +181,6 @@ imshow(map3)
 str = sprintf('Chosen Wheelchair Parking Spot, %d to %d degrees', minAngle, maxAngle);
 title(str);
 
+figure;
+titlestringFunc = @(i) sprintf('potentialFunction: %d degrees', angles(i));
+plotConfigurationSpace(potentialFunction, titlestringFunc);
