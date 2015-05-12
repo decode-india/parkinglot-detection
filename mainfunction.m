@@ -1,8 +1,8 @@
 % ========================================
 % Preprocessing
 % ========================================
-% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
-imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
+imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
+% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
 rgbFolder = fullfile(imgFolder, 'rgb');
 depthFolder = fullfile(imgFolder, 'depth');
 
@@ -40,22 +40,29 @@ imDepth = imread(depthFilePath);
 % ----------------------------------------
 % Generate Wheelchair
 % ----------------------------------------
-isAlreadyLoaded = exist('wheelchairState') == 1;
-cacheFilename = WHEELCHAIRCACHE;
-doesCacheExist = exist(cacheFilename, 'file');
+% isAlreadyLoaded = exist('wheelchairState') == 1;
+% cacheFilename = WHEELCHAIRCACHE;
+% doesCacheExist = exist(cacheFilename, 'file');
+% 
+% if ~isAlreadyLoaded & ~doesCacheExist
+%     numAngles = 9;
+%     minAngle = -20;
+%     maxAngle = 20;
+%     angles = linspace(minAngle, maxAngle, numAngles);
+%     wheelchairsize = [41 31]; % make odd to use centre point as reference
+%     wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
+%     wheelchairState = wheelchairShapeToState(wheelchairShapeAngle, ySize, xSize);
+%     save(cacheFilename,'wheelchairState', '-v7.3');
+% elseif ~isAlreadyLoaded & doesCacheExist
+%     load(cacheFilename,'wheelchairState');
+% end % if
 
-if ~isAlreadyLoaded & ~doesCacheExist
-    numAngles = 9;
-    minAngle = -20;
-    maxAngle = 20;
-    angles = linspace(minAngle, maxAngle, numAngles);
-    wheelchairsize = [41 31]; % make odd to use centre point as reference
-    wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
-    wheelchairState = wheelchairShapeToState(wheelchairShapeAngle, ySize, xSize);
-    save(cacheFilename,'wheelchairState', '-v7.3');
-elseif ~isAlreadyLoaded & doesCacheExist
-    load(cacheFilename,'wheelchairState');
-end % if
+numAngles = 9;
+minAngle = -20;
+maxAngle = 20;
+angles = linspace(minAngle, maxAngle, numAngles);
+wheelchairsize = [41 31]; % make odd to use centre point as reference
+wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
 
 % ----------------------------------------
 % Generate Occupancy Map + Wheelchair
