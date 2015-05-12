@@ -52,4 +52,40 @@ function [occupancyMap, groundMap, origin] = depthToOccupancyMap(imDepth)
     % occupancyMap: what's occupied above ground
     [occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, gridStepMap, newOrigin);
 
+    % ----------------------------------------
+    % Plot
+    % ----------------------------------------
+    figure;
+    subplot(2,1,1)
+    showPointCloud(pointCloudVoxeled);
+    colormap(parula)
+    title('Voxelized Point Cloud with Ground Plane');
+    xlabel('X');
+    ylabel('Y');
+    zlabel('Z');
+    axis equal;
+
+    % Plot 
+    p = pointCloudVoxeled;
+    a = updatedPlane(1);
+    b = updatedPlane(2);
+    c = updatedPlane(3);
+    d = updatedPlane(4);
+    numTicks = 100;
+    xScale = linspace(p.XLimits(1),p.XLimits(2), numTicks);
+    yScale = linspace(p.YLimits(1),p.YLimits(2), numTicks);
+    zScale = linspace(p.ZLimits(1),p.ZLimits(2), numTicks);
+    [xx,yy,zz] = meshgrid(xScale, yScale, zScale);
+    isosurface(xx, yy, zz, a*xx+b*yy+c*zz+d, 0)
+
+    % Plot Point Cluod
+    subplot(2,1,2)
+    showPointCloud(pointCloudRotated);
+    colormap(parula)
+    title('Rotated relative to Ground');
+    xlabel('X');
+    ylabel('Y');
+    zlabel('Z');
+    axis equal;
+
 end % function

@@ -1,28 +1,29 @@
 % Find the desirability for each configuration
-function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairShape)
+function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairShapeAngle)
     angle = 0; % for now
     posFromOrigin = 0;
-    [ySize,xSize] = size(totalMap);
+    [numRows,numCols] = size(totalMap);
+    numAngles = size(wheelchairShapeAngle, 3);
     
-    % measure = computePotential(wheelchairShape, totalMap, 154, 84) 
-    % measure = computePotential(wheelchairShape, totalMap, 5, 20) 
+    [X, Y, THETA] = meshgrid(1:numCols,1:numRows, 1:numAngles);
 
-    [X,Y] = meshgrid(1:xSize,1:ySize);
-    % X = gpuArray(X);
-    % Y = gpuArray(Y);
-
-    potentialAt = @(x,y) computePotential(wheelchairShape, totalMap, x, y);
-    measureAll = arrayfun(potentialAt, X, Y);
+    measureAll = zeros(numRows,numCols,numAngles);
+    for r = 1:numRows
+    for c = 1:numCols
+    for theta = 1:numAngles
+        measureAll(r,c,theta) =  computePotential(wheelchairShapeAngle, totalMap, c, r, theta);
+    end % for
+    end % for
+    end % for
 
 end % function
 
-function measure = computePotential(wheelchairShape, totalMap, x, y) 
-    [ySize,xSize] = size(totalMap);
+function measure = computePotential(wheelchairShapeAngle, totalMap, x, y, theta) 
+    [numRows,numCols] = size(totalMap);
     
-    % wheelChair is wheelchairShape at position (y,x), zeros elsewhere
-    wheelChair = zeros(ySize,xSize);
+    wheelChair = zeros(numRows,numCols);
     wheelChair(y,x) = 1;
-    wheelChair = conv2(wheelChair, wheelchairShape, 'same');
+    wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,theta), 'same');
     wheelChair = wheelChair ~= 0;
 
     % figure
@@ -30,11 +31,21 @@ function measure = computePotential(wheelchairShape, totalMap, x, y)
 
     collisions = (totalMap(wheelChair) == 1);
     if any(collisions)
-        measure = 0;
+        measure = -Inf;
     else
         % measure = sumSquaredClosestDistance(wheelChair, totalMap);
-        % measure = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
-        measure = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        % [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
+        % [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        
+        measure = measure + measure2;
+        % if (x == 70 & y == 50) | (x == 79 & y == 53)
+        %     figure
+        %     imshow(distanceTransform, [0 30], 'Colormap', parula);
+        %     str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
+        %     title(str);
+        % end % if
     end
 end % function
 
@@ -54,37 +65,105 @@ function measure = sumSquaredClosestDistance(wheelChair, totalMap)
 end
 
 % Straight Quadratic with a constant at a small value: _/ or minima \_/
-function measure = sumSquaredClosestDistanceFlat(wheelChair, totalMap)
+function [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap)
     mapAndChair = wheelChair | totalMap;
     mapAndChair = gpuArray(mapAndChair);
-
     distanceTransform = bwdist(mapAndChair).^2; % distance to closest edge, square to bias large gaps
-    measure = sum(distanceTransform(:));
-    measure = double(gather(measure));
 
-    threshold = 5; % pixels to wall
+
+    threshold = 8; % pixels to wall
     isLessThanThreshold = distanceTransform > 0 & distanceTransform <= threshold.^2;
     constValue = 1;
     distanceTransform(isLessThanThreshold) = constValue; % _/
-    % distanceTransform(isLessThanThreshold) = threshold^2 - % distanceTransform(isLessThanThreshold); % \_/ 
+    % distanceTransform(isLessThanThreshold) = threshold^2 - distanceTransform(isLessThanThreshold); % \_/ 
+
+    measure = sum(distanceTransform(:));
+    measure = double(gather(measure));
+
+    distanceTransform = double(gather(distanceTransform));
+    % figure
+    % imshow(distanceTransform, [], 'Colormap', parula);
 end
 
-function measure = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap)
+% wheelChair: nxm array, ones with wheelchair position, 0 without
+% totalMap: nxm array, ones with obstacle position, 0 without
+function [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap)
     % figure
     % imshow(wheelChair);
     % figure
     % imshow(totalMap);
 
     % get wheelchair perimeter
+    totalMap = gpuArray(totalMap);
+    distanceTransformGpu = bwdist(totalMap); % distance to closest obstacle
+
+    % only take wheelchair perimeter values
     wheelChairPerimeter = bwperim(wheelChair,8);
     wheelChairPerimeter = gpuArray(wheelChairPerimeter);
-    totalMap = gpuArray(totalMap);
-    distanceTransform = bwdist(totalMap); % distance to closest obstacle
-    distanceTransform = distanceTransform .* wheelChairPerimeter;
+    
+    distanceTransformGpu = distanceTransformGpu .* wheelChairPerimeter;
     % figure
-    % imshow(distanceTransform, [], 'Colormap', jet(255));
+    % imshow(distanceTransformGpu, [], 'Colormap', parula);
 
-    % measure = sum(distanceTransform(:));
-    measure = min(distanceTransform(wheelChairPerimeter));
+    % Pass (distanceTransformGpu) through local minima function
+    threshold = 8; % pixels to wall
+    isLessThanThreshold = distanceTransformGpu > 0 & distanceTransformGpu <= threshold.^2;
+    constValue = 1;
+    % distanceTransformGpu(isLessThanThreshold) = constValue; % _/
+    distanceTransformGpu(isLessThanThreshold) = threshold^2 - distanceTransformGpu(isLessThanThreshold); % \_/ 
+
+        
+    % measure = sum(distanceTransformGpu(:));
+    measure = min(distanceTransformGpu(wheelChairPerimeter));
     measure = double(gather(measure));
-end
+
+    distanceTransform = double(gather(distanceTransformGpu));
+end % function
+
+function [measure, visualize] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap)
+
+    wheelChairPerimeter = bwperim(wheelChair,8);
+    numPerimeterElements = sum(wheelChairPerimeter(:));
+
+    [rows, cols] = find(wheelChairPerimeter);
+    closestSideWall = zeros(numPerimeterElements,1);
+    for i = 1:numPerimeterElements
+        r = rows(i);
+        c = cols(i);
+        currentRow = totalMap(r,:);
+        leftWall = find(currentRow(1:c-1),1,'last');
+        rightWall = find(currentRow(c:end),1,'first') + (c - 1); % keep relative to totalMap
+        leftWallDist = c - leftWall;
+        rightWallDist = rightWall - c;
+        closestSideWall(i) = min(leftWallDist, rightWallDist);
+    end % for
+
+    measure = min(closestSideWall(:));
+
+    visualize = double(totalMap);
+    visualize(wheelChairPerimeter) = closestSideWall;
+end % function
+
+function [measure, visualize] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap)
+
+    wheelChairPerimeter = bwperim(wheelChair,8);
+    numPerimeterElements = sum(wheelChairPerimeter(:));
+
+    [rows, cols] = find(wheelChairPerimeter);
+    distToFrontWall = zeros(numPerimeterElements,1);
+    for i = 1:numPerimeterElements
+        r = rows(i);
+        c = cols(i);
+        currentRow = totalMap(:,c);
+        backWall = find(currentRow(1:r-1), 1, 'last');
+        frontWall = find(currentRow(r:end), 1, 'first') + (r - 1); % keep relative to totalMap
+        backWallDist = r - backWall;
+        frontWallDist = frontWall - r;
+        distToFrontWall(i) = frontWallDist;
+    end % for
+
+    measure = -1 * min(distToFrontWall); % negative to penalize far away dists
+
+    visualize = double(totalMap);
+    visualize(wheelChairPerimeter) = distToFrontWall;
+end % function

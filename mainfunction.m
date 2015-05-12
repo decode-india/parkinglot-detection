@@ -1,19 +1,24 @@
 % ========================================
 % Preprocessing
 % ========================================
-imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
+% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
+imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
 rgbFolder = fullfile(imgFolder, 'rgb');
 depthFolder = fullfile(imgFolder, 'depth');
 
-rgbFilename = fullfile(rgbFolder, 'rgb_1.jpg');
-depthFilename = fullfile(depthFolder, 'depth_1.jpg');
+rgbFilePath = fullfile(rgbFolder, 'rgb_1.jpg');
+depthFilePath = fullfile(depthFolder, 'depth_1.jpg');
+
+% rgbFilePath = fullfile(rgbFolder, 'rgb_112.jpg');
+% depthFilePath = fullfile(depthFolder, 'depth_112.jpg');
+WHEELCHAIRCACHE = '/home/vgan/code/experiments/parkinglot-detection-output/20150511-wheelchair/wheelchairState.mat';
 
 % ----------------------------------------
 % Flip
 % going from (0,0) in top left to (0,0) in bottom right
 % ----------------------------------------
-imRgb = imread(rgbFilename);
-imDepth = imread(depthFilename);
+imRgb = imread(rgbFilePath);
+imDepth = imread(depthFilePath);
 
 % imRgbFlipped = flipImage(imRgb, isUpsideDown, isMirrored);
 
@@ -35,19 +40,31 @@ imDepth = imread(depthFilename);
 % ----------------------------------------
 % Generate Wheelchair
 % ----------------------------------------
-numAngles = 9;
-minAngle = -20;
-maxAngle = 20;
-angles = linspace(minAngle, maxAngle, numAngles);
-wheelchairsize = [41 31]; % make odd to use centre point as reference
-wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
+isAlreadyLoaded = exist('wheelchairState') == 1;
+cacheFilename = WHEELCHAIRCACHE;
+doesCacheExist = exist(cacheFilename, 'file');
+
+if ~isAlreadyLoaded & ~doesCacheExist
+    numAngles = 9;
+    minAngle = -20;
+    maxAngle = 20;
+    angles = linspace(minAngle, maxAngle, numAngles);
+    wheelchairsize = [41 31]; % make odd to use centre point as reference
+    wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
+    wheelchairState = wheelchairShapeToState(wheelchairShapeAngle, ySize, xSize);
+    save(cacheFilename,'wheelchairState', '-v7.3');
+elseif ~isAlreadyLoaded & doesCacheExist
+    load(cacheFilename,'wheelchairState');
+end % if
 
 % ----------------------------------------
 % Generate Occupancy Map + Wheelchair
 % ----------------------------------------
 % Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
-visibleMap = imgaussfilt(groundMap) == 0; 
-wallMap = imgaussfilt(occupancyMap) ~= 0; % >1 for noise robustness
+sigmaGround = 0.5;
+sigmaWall = 0.7;
+visibleMap = imgaussfilt(groundMap, sigmaGround) == 0; 
+wallMap = imgaussfilt(occupancyMap, sigmaWall) ~= 0; % >1 for noise robustness
 totalMap = visibleMap | wallMap; % if obstacle occurs in either
 
 feasibleStates = zeros(ySize, xSize, numAngles);
@@ -60,28 +77,36 @@ end % for
 % Find Best Wheelchair Configuration
 % ----------------------------------------
 % numAngles = size(wheelchairShapeAngle, 3);
+% for i = 1:numAngles
+%     potentialFunction(:,:,i) = findPotentialFunction(totalMap, origin, wheelchairShapeAngle(:,:,i));
+% end % for
+potentialFunction = zeros(ySize, xSize, numAngles);
+potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle);
+
 bestRow = -Inf;
 bestCol = -Inf;
 bestAngle = -Inf; % degrees
-potentialFunction = zeros(ySize, xSize, numAngles);
+bestMaxPotential = -Inf;
 for i = 1:numAngles
-    potentialFunction(:,:,i) = findPotentialFunction(totalMap, origin, wheelchairShapeAngle(:,:,i));
     maxPotential = max(max(potentialFunction(:,:,i)));
     [row, col] = find( potentialFunction(:,:,i) >= maxPotential, 1, 'first' );
     if maxPotential > bestMaxPotential
         bestRow = row;
         bestCol = col;
         bestAngle = i;
+        bestMaxPotential = maxPotential;
     end
 end % for
-
+ 
 % ----------------------------------------
 % Generate Best Wheelchair Configuration on Map
 % ----------------------------------------
-wheelChair = zeros(ySize,xSize);
-wheelChair(bestRow,bestCol) = 1;
-wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,bestAngle), 'same') ~= 0;
-( sum(totalMap(wheelChair) == 1) == 0 ) % no collisions
+if bestRow ~= -Inf
+    wheelChair = zeros(ySize,xSize);
+    wheelChair(bestRow,bestCol) = 1;
+    wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,bestAngle), 'same') ~= 0;
+    ( sum(totalMap(wheelChair) == 1) == 0 ) % no collisions
+end
 
 
 % potentialFunction = visibleWeight + obstacleWeight;
@@ -107,44 +132,13 @@ titlestringFunc = @(i) sprintf('feasibleStates: %d degrees', angles(i));
 plotConfigurationSpace(feasibleStates, titlestringFunc);
 
 figure;
-subplot(2,2,1)
+subplot(2,1,1)
 imshow(imRgb)
 title('RGB Image');
-subplot(2,2,2)
+subplot(2,1,2)
 imshow(imDepth)
 title('Depth Image');
 
-subplot(2,2,3)
-showPointCloud(pointCloudVoxeled);
-colormap(parula)
-title('Voxelized Point Cloud with Ground Plane');
-xlabel('X');
-ylabel('Y');
-zlabel('Z');
-axis equal;
-
-% Plot 
-p = pointCloudVoxeled;
-a = updatedPlane(1);
-b = updatedPlane(2);
-c = updatedPlane(3);
-d = updatedPlane(4);
-numTicks = 100;
-xScale = linspace(p.XLimits(1),p.XLimits(2), numTicks);
-yScale = linspace(p.YLimits(1),p.YLimits(2), numTicks);
-zScale = linspace(p.ZLimits(1),p.ZLimits(2), numTicks);
-[xx,yy,zz] = meshgrid(xScale, yScale, zScale);
-isosurface(xx, yy, zz, a*xx+b*yy+c*zz+d, 0)
-
-% Plot Point Cluod
-subplot(2,2,4)
-showPointCloud(pointCloudRotated);
-colormap(parula)
-title('Rotated relative to Ground');
-xlabel('X');
-ylabel('Y');
-zlabel('Z');
-axis equal;
 
 % hold on
 % p = pointCloud(pointsT');
@@ -171,8 +165,8 @@ subplot(2,2,3)
 imshow(potentialFunction(:,:,bestAngle), [], 'Colormap', parula)
 title('Potential Function for Chosen Angle (Red is Better)');
 
-
-subplot(2,2,4)
+% subplot(2,2,4)
+figure
 map3 = zeros(size(groundMap,1),size(groundMap,2),3);
 mapAndChair = wheelChair | totalMap;
 map3(:,:,1) = mapAndChair;
@@ -183,5 +177,5 @@ str = sprintf('Chosen Wheelchair Parking Spot, %d to %d degrees', minAngle, maxA
 title(str);
 
 figure;
-titlestringFunc = @(i) sprintf('potentialFunction: %d degrees', angles(i));
+titlestringFunc = @(i) sprintf('desirabilityFunction: %d degrees', angles(i));
 plotConfigurationSpace(potentialFunction, titlestringFunc);

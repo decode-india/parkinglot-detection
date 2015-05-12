@@ -22,7 +22,7 @@ depth(depth == 0) = nan;
 center = [320 240];
 [imh, imw] = size(depth);
 constant = 570.3;
-% MM_PER_M = 1000;
+ % MM_PER_M = 1000;
 MM_PER_M = 1;
 
 % convert depth image to 3d point clouds
