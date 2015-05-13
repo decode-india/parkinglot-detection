@@ -15,7 +15,6 @@ depthFilePath = fullfile(depthFolder, 'depth_1.jpg');
 
 % rgbFilePath = fullfile(rgbFolder, 'rgb_112.jpg');
 % depthFilePath = fullfile(depthFolder, 'depth_112.jpg');
-WHEELCHAIRCACHE = '/home/vgan/code/experiments/parkinglot-detection-output/20150511-wheelchair/wheelchairState.mat';
 imRgb = imread(rgbFilePath);
 
 imDepth = imread(depthFilePath);
@@ -36,6 +35,9 @@ imDepthFlipped = flipImage(imDepth, isUpsideDown, isMirrored);
 % pointcloudRaw = points;
 [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw);
 
+% ----------------------------------------
+% Point Cloud to Occupancy Map
+% ----------------------------------------
 % groundMap: the visible ground
 % occupancyMap: what's occupied above ground
 % gridStepMap = 0.02;
@@ -45,6 +47,14 @@ groundThreshold = 10;
 [occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
 [ySize,xSize] = size(occupancyMap);
 
+
+% ========================================
+% Convolution
+% ========================================
+
+% ----------------------------------------
+% Modifying Occupancy Map
+% ----------------------------------------
 % ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
 % [XX,YY] = meshgrid(1:xSize,1:ySize);
 % distFromOrigin = sqrt((XX-origin(2)).^2 + (YY-origin(1)).^2);
@@ -52,30 +62,9 @@ groundThreshold = 10;
 % viablePixels = distFromOrigin < 50/gridStepMap;
 % groundMap(viablePixels) = true;
 
-% ========================================
-% Convolution
-% ========================================
-
 % ----------------------------------------
 % Generate Wheelchair
 % ----------------------------------------
-% isAlreadyLoaded = exist('wheelchairState') == 1;
-% cacheFilename = WHEELCHAIRCACHE;
-% doesCacheExist = exist(cacheFilename, 'file');
-% 
-% if ~isAlreadyLoaded & ~doesCacheExist
-%     numAngles = 9;
-%     minAngle = -20;
-%     maxAngle = 20;
-%     angles = linspace(minAngle, maxAngle, numAngles);
-%     wheelchairsize = [41 31]; % make odd to use centre point as reference
-%     wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
-%     wheelchairState = wheelchairShapeToState(wheelchairShapeAngle, ySize, xSize);
-%     save(cacheFilename,'wheelchairState', '-v7.3');
-% elseif ~isAlreadyLoaded & doesCacheExist
-%     load(cacheFilename,'wheelchairState');
-% end % if
-
 numAngles = 9;
 minAngle = -20;
 maxAngle = 20;
