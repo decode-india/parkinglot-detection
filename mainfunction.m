@@ -3,8 +3,12 @@
 % ========================================
 imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
 % imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
+% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50-temp/';
 rgbFolder = fullfile(imgFolder, 'rgb');
 depthFolder = fullfile(imgFolder, 'depth');
+
+% rgbFilePath = fullfile(rgbFolder, '00001.png');
+% depthFilePath = fullfile(depthFolder, '00001.mat');
 
 rgbFilePath = fullfile(rgbFolder, 'rgb_1.jpg');
 depthFilePath = fullfile(depthFolder, 'depth_1.jpg');
@@ -12,18 +16,33 @@ depthFilePath = fullfile(depthFolder, 'depth_1.jpg');
 % rgbFilePath = fullfile(rgbFolder, 'rgb_112.jpg');
 % depthFilePath = fullfile(depthFolder, 'depth_112.jpg');
 WHEELCHAIRCACHE = '/home/vgan/code/experiments/parkinglot-detection-output/20150511-wheelchair/wheelchairState.mat';
+imRgb = imread(rgbFilePath);
 
+imDepth = imread(depthFilePath);
 % ----------------------------------------
 % Flip
 % going from (0,0) in top left to (0,0) in bottom right
 % ----------------------------------------
-imRgb = imread(rgbFilePath);
-imDepth = imread(depthFilePath);
+isUpsideDown = true; 
+isMirrored = true;
+imDepthFlipped = flipImage(imDepth, isUpsideDown, isMirrored);
 
-% imRgbFlipped = flipImage(imRgb, isUpsideDown, isMirrored);
+% ----------------------------------------
+% Convert to Point Cloud
+% ----------------------------------------
+[pointcloudRaw, ~] = depthToCloud(imDepthFlipped);
 
-[occupancyMap, groundMap, origin] = depthToOccupancyMap(imDepth);
+% load(depthFilePath,'points');
+% pointcloudRaw = points;
+[pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw);
 
+% groundMap: the visible ground
+% occupancyMap: what's occupied above ground
+% gridStepMap = 0.02;
+% groundThreshold = 1;
+gridStepMap = 2;
+groundThreshold = 10;
+[occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
 [ySize,xSize] = size(occupancyMap);
 
 % ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.

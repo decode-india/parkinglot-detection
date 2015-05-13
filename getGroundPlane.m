@@ -55,8 +55,8 @@ function [best_plane, indicies] = getGroundPlane( points, maxInclinationAngle, t
   % tolerance for a point to belong to a plane
   if nargin < 3
     % set default tolerance
-    %tol = 1e-6;
-    tol = 2; % distance in mm from plane
+    tol = 1e-6;
+    % tol = 2; % distance in mm from plane
   end
 
   % variables subsequently used to determine if a vector can be the normal

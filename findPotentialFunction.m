@@ -35,18 +35,18 @@ function measure = computePotential(wheelchairShapeAngle, totalMap, x, y, theta)
     else
         % measure = sumSquaredClosestDistance(wheelChair, totalMap);
         % [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
-        [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        % [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
 
-        % [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-        % [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-        % measure = measure + measure2;
+        [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        measure = measure + measure2;
 
-        % if (x == 70 & y == 50) | (x == 79 & y == 53)
-        %     figure
-        %     imshow(distanceTransform, [0 30], 'Colormap', parula);
-        %     str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
-        %     title(str);
-        % end % if
+        if (x == 70 & y == 50) | (x == 79 & y == 53)
+            figure
+            imshow(distanceTransform, [0 30], 'Colormap', parula);
+            str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
+            title(str);
+        end % if
     end
 end % function
 
