@@ -18,6 +18,7 @@ depthFilePath = fullfile(depthFolder, 'depth_1.jpg');
 imRgb = imread(rgbFilePath);
 
 imDepth = imread(depthFilePath);
+
 % ----------------------------------------
 % Flip
 % going from (0,0) in top left to (0,0) in bottom right
@@ -33,7 +34,11 @@ imDepthFlipped = flipImage(imDepth, isUpsideDown, isMirrored);
 
 % load(depthFilePath,'points');
 % pointcloudRaw = points;
-[pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw);
+voxelGridSize = 2; % m
+ransacParams.floorPlaneTolerance = 2; % tolerance in m
+ransacParams.maxInclinationAngle = 30; % in degrees
+[pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams);
+
 
 % ----------------------------------------
 % Point Cloud to Occupancy Map
@@ -73,15 +78,16 @@ wheelchairsize = [41 31]; % make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
 
 % ----------------------------------------
-% Generate Occupancy Map + Wheelchair
+% Generate Occupancy Map 
 % ----------------------------------------
 % Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
 sigmaGround = 0.5;
 sigmaWall = 0.7;
 visibleMap = imgaussfilt(groundMap, sigmaGround) == 0; 
-wallMap = imgaussfilt(occupancyMap, sigmaWall) ~= 0; % >1 for noise robustness
+wallMap = imgaussfilt(occupancyMap, sigmaWall) ~= 0; % > 1 for noise robustness
 totalMap = visibleMap | wallMap; % if obstacle occurs in either
 
+% not used. TODO remove
 feasibleStates = zeros(ySize, xSize, numAngles);
 for i = 1:numAngles
     normalizedWheelchair = wheelchairShapeAngle(:,:,i) ./sum(sum( wheelchairShapeAngle(:,:,i) ));
@@ -91,10 +97,6 @@ end % for
 % ----------------------------------------
 % Find Best Wheelchair Configuration
 % ----------------------------------------
-% numAngles = size(wheelchairShapeAngle, 3);
-% for i = 1:numAngles
-%     potentialFunction(:,:,i) = findPotentialFunction(totalMap, origin, wheelchairShapeAngle(:,:,i));
-% end % for
 potentialFunction = zeros(ySize, xSize, numAngles);
 potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle);
 
@@ -122,7 +124,6 @@ if bestRow ~= -Inf
     wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,bestAngle), 'same') ~= 0;
     ( sum(totalMap(wheelChair) == 1) == 0 ) % no collisions
 end
-
 
 % potentialFunction = visibleWeight + obstacleWeight;
 % imshow(potentialFunction,[]);

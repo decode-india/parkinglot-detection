@@ -1,4 +1,4 @@
-function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw)
+function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams)
 % Downsamples and rotates the point cloud to algin the XY axes to the ground plane
 
     % ----------------------------------------
@@ -7,34 +7,32 @@ function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw)
     % apply voxel grid filter to a) speed up and b) place equal weights in each
     % voxel for RANSAC
     pointCloudObj = pointCloud(pointcloudRaw); % matlab pointcloud object
-    % gridStep = 0.02; % m
-    gridStep = 2; % m
-    pointCloudVoxeled = pcdownsample(pointCloudObj,'gridAverage',gridStep);
+    % voxelGridSize = 2; % m
+    pointCloudVoxeled = pcdownsample(pointCloudObj,'gridAverage',voxelGridSize);
     pointCloudVoxeled = pointCloudObj; % don't downsample
 
-    pointCloudVoxeledRow = select(pointCloudVoxeled, 1:pointCloudVoxeled.Count);
-    pointCloudVoxeledT = pointCloudVoxeledRow.Location'; % don't downsample
+    % pointCloudVoxeledRow = select(pointCloudVoxeled, 1:pointCloudVoxeled.Count); % hxwx3 to mx3
     % pointCloudVoxeledT(:,2) = -pointCloudVoxeledT(:,2);  % flip so Y is positive in upwards direction
-    pointCloudDenoisedT = pointCloudVoxeledT;
+    % pointCloudDenoisedT = pointCloudVoxeledT;
 
-    % % ----------------------------------------
-    % % pointCloudDenoised : removed noise
-    % % pointCloudDenoisedT : transpose of pointCloudDenoised
-    % % ----------------------------------------
-    % % Extra points occur near the origin of the camera - remove them.
-    % radius = 0.10; % m
-    % cameraPosition = [0 0 0];
-    % originIndicies = findNeighborsInRadius(pointCloudVoxeled, cameraPosition, radius);
-    % allIndicies = 1:pointCloudVoxeled.Count;
-    % pointCloudDenoised = select(pointCloudVoxeled, setdiff(allIndicies,originIndicies));
-    % pointCloudDenoisedT = pointCloudDenoised.Location'; % 3xN
+    % ----------------------------------------
+    % pointCloudDenoised : removed noise
+    % pointCloudDenoisedT : transpose of pointCloudDenoised
+    % ----------------------------------------
+    % Extra points occur near the origin of the camera - remove them.
+    radius = 0.10; % m
+    cameraPosition = [0 0 0];
+    originIndicies = findNeighborsInRadius(pointCloudVoxeled, cameraPosition, radius);
+    allIndicies = 1:pointCloudVoxeled.Count;
+    pointCloudDenoised = select(pointCloudVoxeled, setdiff(allIndicies,originIndicies));
+    pointCloudDenoisedT = pointCloudDenoised.Location'; % 3xN
 
     % ----------------------------------------
     % Rotate points to align ground plane to x-y plane
     % ----------------------------------------
     % floorPlaneTolerance = 0.02; % tolerance in m
-    floorPlaneTolerance = 2; % tolerance in m
-    maxInclinationAngle = 30; % in degrees
+    floorPlaneTolerance = ransacParams.floorPlaneTolerance; % tolerance in m
+    maxInclinationAngle = ransacParams.maxInclinationAngle; % in degrees
     [updatedPlane, ~] = getGroundPlane(pointCloudDenoisedT, maxInclinationAngle, floorPlaneTolerance);
 
     % transform the point cloud to a more pratical reference system ---
