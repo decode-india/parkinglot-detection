@@ -15,13 +15,13 @@ function [pointclouds, colordata] = rosbagToPointCloud(bagfile, outputFolder)
     channels = firstFrame.point_step; % number of channels for each pixel
 
     % ----------------------------------------
-
     depthFolder = fullfile(outputFolder, 'depth');
     rgbFolder = fullfile(outputFolder, 'rgb');
     makeFolder(depthFolder);
     makeFolder(rgbFolder);
     numFormat = '%05d'; % always 5 digits long
 
+    % ----------------------------------------
     %% For each timestep, generate a point cloud
     numFrames = length(depthPointsTopic);
     pointclouds = cell(numFrames, 1);
@@ -40,11 +40,17 @@ function [pointclouds, colordata] = rosbagToPointCloud(bagfile, outputFolder)
         colordata{i} = imgRGB;
     end % for
 
-
-
+    % ----------------------------------------
+    %% Save all in one
+    pointCloudPath = fullfile(depthFolder, ['pointclouds.mat']);
+    save(pointCloudPath, 'pointclouds');
+    colordataPath = fullfile(rgbFolder, ['colordata.mat']);
+    save(colordataPath, 'colordata');
 
 end % function
 
+% pointData: Nx1 matrix, where N is imHeight*imWidth*channels
+% sizes: 1-by-3 matrix, imHeight, imWidth, channels
 function [points, imgRGB] = depthRegisteredToPoints(pointData, sizes)
     imHeight = sizes(1);
     imWidth  = sizes(2);
