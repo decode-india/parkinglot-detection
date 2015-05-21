@@ -8,41 +8,41 @@ function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxel
     % voxel for RANSAC
     pointCloudObj = pointCloud(pointcloudRaw); % matlab pointcloud object
     % voxelGridSize = 2; % m
-    pointCloudVoxeled = pcdownsample(pointCloudObj,'gridAverage',voxelGridSize);
+    % pointCloudVoxeled = pcdownsample(pointCloudObj,'gridAverage',voxelGridSize);
     pointCloudVoxeled = pointCloudObj; % don't downsample
 
-    % pointCloudVoxeledRow = select(pointCloudVoxeled, 1:pointCloudVoxeled.Count); % hxwx3 to mx3
-    % pointCloudVoxeledT(:,2) = -pointCloudVoxeledT(:,2);  % flip so Y is positive in upwards direction
-    % pointCloudDenoisedT = pointCloudVoxeledT;
+    pointCloudVoxeled = structuredToUnstructuredPointCloud(pointCloudVoxeled);
 
     % ----------------------------------------
     % pointCloudDenoised : removed noise
     % pointCloudDenoisedT : transpose of pointCloudDenoised
     % ----------------------------------------
     % Extra points occur near the origin of the camera - remove them.
-    radius = 0.10; % m
-    cameraPosition = [0 0 0];
-    originIndicies = findNeighborsInRadius(pointCloudVoxeled, cameraPosition, radius);
-    allIndicies = 1:pointCloudVoxeled.Count;
-    pointCloudDenoised = select(pointCloudVoxeled, setdiff(allIndicies,originIndicies));
-    pointCloudDenoisedT = pointCloudDenoised.Location'; % 3xN
+    % radius = 0.10; % m
+    % cameraPosition = [0 0 0];
+    % originIndicies = findNeighborsInRadius(pointCloudVoxeled, cameraPosition, radius);
+    % allIndicies = 1:pointCloudVoxeled.Count;
+    % pointCloudDenoised = select(pointCloudVoxeled, setdiff(allIndicies,originIndicies));
+    % pointCloudDenoisedT = pointCloudDenoised.Location'; % 3xN
 
     % ----------------------------------------
     % Rotate points to align ground plane to x-y plane
     % ----------------------------------------
-    % floorPlaneTolerance = 0.02; % tolerance in m
+    % Massage point cloud to be in proper format for getGroundPlane and rotatePointCloud
+    pointCloudVoxeled = pointCloud(Rotate180AlongZ(pointCloudVoxeled.Location)); % To get positive Y values
+    pointCloudVoxeledT = pointCloudVoxeled.Location'; % 3xN
+
     floorPlaneTolerance = ransacParams.floorPlaneTolerance; % tolerance in m
     maxInclinationAngle = ransacParams.maxInclinationAngle; % in degrees
-    [updatedPlane, ~] = getGroundPlane(pointCloudDenoisedT, maxInclinationAngle, floorPlaneTolerance);
+    [updatedPlane, ~] = getGroundPlane(pointCloudVoxeledT, maxInclinationAngle, floorPlaneTolerance);
 
     % transform the point cloud to a more pratical reference system ---
     % Ground is now x-y plane.
-    [pointsTRotated,R,Rinv] = rotatePointCloud(pointCloudDenoisedT, updatedPlane);
+    [pointsTRotated,R,Rinv] = rotatePointCloud(pointCloudVoxeledT, updatedPlane);
     oldOrigin = [0 0 0 1]';
     newOrigin = R*oldOrigin;
 
     pointCloudRotated = pointCloud(pointsTRotated');
-
 
     % ----------------------------------------
     % Plot
@@ -82,4 +82,18 @@ function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxel
         zlabel('Z');
         axis equal;
     end % if
+end % function
+
+
+% Needed to get positive Y values
+% points: mx3 matrix of points
+function [points] = Rotate180AlongZ(points)
+    points(:,1) = points(:,1) * -1;
+    points(:,2) = points(:,2) * -1;
+end % function
+
+% M x N x 3 to (N*M) x 3
+function pointCloudDenoised = structuredToUnstructuredPointCloud(pointCloudObj)
+    allIndicies = 1:pointCloudObj.Count;
+    pointCloudDenoised = select(pointCloudObj, allIndicies);
 end % function
