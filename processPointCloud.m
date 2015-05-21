@@ -11,24 +11,12 @@ function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxel
     % pointCloudVoxeled = pcdownsample(pointCloudObj,'gridAverage',voxelGridSize);
     pointCloudVoxeled = pointCloudObj; % don't downsample
 
-    pointCloudVoxeled = structuredToUnstructuredPointCloud(pointCloudVoxeled);
-
-    % ----------------------------------------
-    % pointCloudDenoised : removed noise
-    % pointCloudDenoisedT : transpose of pointCloudDenoised
-    % ----------------------------------------
-    % Extra points occur near the origin of the camera - remove them.
-    % radius = 0.10; % m
-    % cameraPosition = [0 0 0];
-    % originIndicies = findNeighborsInRadius(pointCloudVoxeled, cameraPosition, radius);
-    % allIndicies = 1:pointCloudVoxeled.Count;
-    % pointCloudDenoised = select(pointCloudVoxeled, setdiff(allIndicies,originIndicies));
-    % pointCloudDenoisedT = pointCloudDenoised.Location'; % 3xN
 
     % ----------------------------------------
     % Rotate points to align ground plane to x-y plane
     % ----------------------------------------
     % Massage point cloud to be in proper format for getGroundPlane and rotatePointCloud
+    pointCloudVoxeled = structuredToUnstructuredPointCloud(pointCloudVoxeled);
     pointCloudVoxeled = pointCloud(Rotate180AlongZ(pointCloudVoxeled.Location)); % To get positive Y values
     pointCloudVoxeledT = pointCloudVoxeled.Location'; % 3xN
 
