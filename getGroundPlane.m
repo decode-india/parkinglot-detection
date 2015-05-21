@@ -35,35 +35,32 @@ function [best_plane, indicies] = getGroundPlane( points, maxInclinationAngle, t
 %
 % See also getPointCloud
 
-  % collinearity threshold
-  collinearityThreshold = sin(0.1*pi/180);
-    
-  % set maximum inclination angle of the camera, if not provided as input
-  if nargin < 2
+% ------------------------------
+% Preprocess inputs
+% set maximum inclination angle of the camera, if not provided as input
+noAngleInput = nargin < 2;
+if noAngleInput
     maxInclinationAngle = 80;
-  end
-  
-  if maxInclinationAngle > 90
-    maxInclinationAngle = 90;
-  end
-  
-  % allow always some tolerance for inclination
-  if maxInclinationAngle < 10
-    maxInclinationAngle = 10;
-  end
-  
-  % tolerance for a point to belong to a plane
-  if nargin < 3
-    % set default tolerance
-    tol = 1e-6;
-    % tol = 2; % distance in mm from plane
-  end
+end
+if maxInclinationAngle > 90
+    maxInclinationAngle = 90; % can only be between -90 and 90
+elseif maxInclinationAngle < 10
+    maxInclinationAngle = 10; % allow always some tolerance for inclination
+end
 
-  % variables subsequently used to determine if a vector can be the normal
-  % to the ground plane or not (if not they probably are a wall). They are 
-  % set according to the maxInclinationAngle of the camera.
-  minTolWall = deg2rad(maxInclinationAngle);
-  maxTolWall = deg2rad(180 - maxInclinationAngle);
+% ------------------------------
+% tolerance for a point to belong to a plane
+noToleranceInput = nargin < 3;
+if noToleranceInput
+    % set default tolerance
+    tol = 1e-6; % tol = 2; % distance in mm from plane
+end
+
+% variables subsequently used to determine if a vector can be the normal
+% to the ground plane or not (if not they probably are a wall). They are 
+% set according to the maxInclinationAngle of the camera.
+minTolWall = deg2rad(maxInclinationAngle);
+maxTolWall = deg2rad(180 - maxInclinationAngle);
   
   % max number of tentative
   tentative_num = 200;
@@ -85,6 +82,7 @@ function [best_plane, indicies] = getGroundPlane( points, maxInclinationAngle, t
   best_count = 0;
   best_plane = [];
   indicies = [];
+  collinearityThreshold = sin(0.1*pi/180);
     
   while tentative_num>0 
     
@@ -144,6 +142,7 @@ function [best_plane, indicies] = getGroundPlane( points, maxInclinationAngle, t
   
   if best_plane(2) < 0
      best_plane = -best_plane;
+     disp('Flipping')
   end
   
 end
