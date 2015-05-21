@@ -12,6 +12,9 @@ outputFolder = fullfile(projectFolder, [bagfile '-temp']);
 
 [points, imgRGB] = rosbagToPointCloud(bagFullFile, outputFolder);
 
+outputFolder = fullfile(projectFolder, [bagfile '-temp2']);
+[points, imgRGB] = rosbagToPointCloud2(bagFullFile, outputFolder);
+
 % p = pointCloud(points, 'Color', imgRGB);
 % showPointCloud(p);
 
