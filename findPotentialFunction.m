@@ -1,29 +1,27 @@
 % Find the desirability for each configuration
-function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairShapeAngle)
-    angle = 0; % for now
-    posFromOrigin = 0;
+function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairShapeAngle, angles)
+
     [numRows,numCols] = size(totalMap);
     numAngles = size(wheelchairShapeAngle, 3);
     
-    [X, Y, THETA] = meshgrid(1:numCols,1:numRows, 1:numAngles);
-
     measureAll = zeros(numRows,numCols,numAngles);
+    for thetaIdx = 1:numAngles
+        thetaIdx
     for r = 1:numRows
     for c = 1:numCols
-    for theta = 1:numAngles
-        measureAll(r,c,theta) =  computePotential(wheelchairShapeAngle, totalMap, c, r, theta);
+        measureAll(r,c,thetaIdx) = computePotential(wheelchairShapeAngle(:,:,thetaIdx), totalMap, c, r, angles(thetaIdx));
     end % for
     end % for
     end % for
 
 end % function
 
-function measure = computePotential(wheelchairShapeAngle, totalMap, x, y, theta) 
+function measure = computePotential(wheelchairShape, totalMap, x, y, theta) 
     [numRows,numCols] = size(totalMap);
     
     wheelChair = zeros(numRows,numCols);
     wheelChair(y,x) = 1;
-    wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,theta), 'same');
+    wheelChair = conv2(wheelChair, wheelchairShape, 'same');
     wheelChair = wheelChair ~= 0;
 
     % figure
@@ -37,15 +35,23 @@ function measure = computePotential(wheelchairShapeAngle, totalMap, x, y, theta)
         % [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
         % [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
 
-        [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-        [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-        measure = measure + measure2;
+        % [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        % [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        % measure = measure + measure2;
+        
+        [measure, distanceTransform] = minOrientedSideDist(wheelChair, totalMap, theta);
+        [measure2, distanceTransform2] = minOrientedFrontDist(wheelChair, totalMap, theta);
 
-        if (x == 70 & y == 50) | (x == 79 & y == 53)
+        pointsToPlot = (x == 70 & y == 50) | (x == 79 & y == 53);
+        if pointsToPlot
             figure
+            subplot(1,2,1)
             imshow(distanceTransform, [0 30], 'Colormap', parula);
             str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
             title(str);
+            subplot(1,2,2)
+            imshow(totalMap, 'Colormap', parula);
+            title('Obstacle Map');
         end % if
     end
 end % function
@@ -120,6 +126,7 @@ function [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(whe
     distanceTransform = double(gather(distanceTransformGpu));
 end % function
 
+% These two are 'max side distances, min back distance'
 function [measure, visualize] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap)
 
     wheelChairPerimeter = bwperim(wheelChair,8);
@@ -143,7 +150,6 @@ function [measure, visualize] = minSideDistBetweenWheelchairAndObstacles(wheelCh
     visualize = double(totalMap);
     visualize(wheelChairPerimeter) = closestSideWall;
 end % function
-
 function [measure, visualize] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap)
 
     wheelChairPerimeter = bwperim(wheelChair,8);
@@ -166,4 +172,223 @@ function [measure, visualize] = minFrontDistBetweenWheelchairAndObstacles(wheelC
 
     visualize = double(totalMap);
     visualize(wheelChairPerimeter) = distToFrontWall;
+end % function
+
+% miniumum distnace between chair and obstacles, form chair's orientation
+function [measure, visualize] = minOrientedFrontDist(wheelChair, totalMap, angle)
+
+    wheelChairPerimeter = bwperim(wheelChair,8);
+    numPerimeterElements = sum(wheelChairPerimeter(:));
+    [ys, xs] = find(wheelChairPerimeter);
+    
+    [mapHeight, mapWidth] = size(totalMap);
+
+    distFromRear = zeros(numPerimeterElements,1);
+    for i = 1:numPerimeterElements
+        y = ys(i);
+        x = xs(i);
+        linemap = rasterlineFromPoint(y,x,angle,mapHeight,mapWidth);
+
+        % All obstacle positions along the line oriented to the front
+        lineObstacles = linemap & totalMap;
+
+        [side1Dist, side2Dist] = closestDistsToPoint(x, y, lineObstacles);
+
+        % side1Dist corresponds to the point far from camera
+        distFromRear(i) = side1Dist; % TODO Check
+    end % for
+
+    measure = -1 * min(distFromRear); % negative to penalize far away dists
+
+    visualize = double(totalMap);
+    visualize(wheelChairPerimeter) = distFromRear;
+end % function
+
+% miniumum distnace between chair and obstacles, form chair's orientation
+function [measure, visualize] = minOrientedSideDist(wheelChair, totalMap, angle)
+
+    wheelChairPerimeter = bwperim(wheelChair,8);
+    numPerimeterElements = sum(wheelChairPerimeter(:));
+    [ys, xs] = find(wheelChairPerimeter);
+    
+    [mapHeight, mapWidth] = size(totalMap);
+
+    distFromRear = zeros(numPerimeterElements,1);
+    for i = 1:numPerimeterElements
+        y = ys(i);
+        x = xs(i);
+        
+        perpendicularAngle = 90 - angle;
+        linemap = rasterlineFromPoint(y,x,perpendicularAngle,mapHeight,mapWidth);
+
+        % All obstacle positions along the line oriented to the front
+        lineObstacles = linemap & totalMap;
+
+
+        [side1Dist, side2Dist] = closestDistsToPoint(x, y, lineObstacles);
+
+        closestSideWall(i) = min(side1Dist, side2Dist);
+    end % for
+
+    measure = 1 * min(closestSideWall); % positive to penalize close dists
+
+    visualize = double(totalMap);
+    visualize(wheelChairPerimeter) = closestSideWall;
+end % function
+
+function [side1Dist, side2Dist] = closestDistsToPoint(x, y, lineObstacles)
+
+        % In index form
+        [r,c] = find(lineObstacles);
+        
+        % min distance from point from either side
+        yDiff = r-y;
+        xDiff = c-x;
+
+        %% Doesn't work for straight vertical lines
+        % isPositiveSlope = sum(yDiff>0) == sum(xDiff>0)
+        % isNegativeSlope = sum(yDiff>0) == sum(xDiff<0)
+        % if isPositiveSlope
+        %     side1y = yDiff(yDiff>0 );
+        %     side2y = yDiff(yDiff<=0);
+        %     side1x = xDiff(xDiff>0 );
+        %     side2x = xDiff(xDiff<=0);
+        % elseif isNegativeSlope
+        %     side1y = yDiff (yDiff>0 );
+        %     side2y = yDiff (yDiff<=0);
+        %     side1x = xDiff (xDiff<0 );
+        %     side2x = xDiff (xDiff>=0);
+        % else
+        %     error('the number of x and y indicies to the left (or right) of the point (x,y) are not equal')
+        % end % if
+        
+        % Will always have significant y differencews
+        side1y = yDiff(yDiff>0 );
+        side2y = yDiff(yDiff<=0);
+        side1x = xDiff(yDiff>0 );
+        side2x = xDiff(yDiff<=0);
+        
+        distsFromPointside1 = sqrt(side1y.^2 + side1x.^2);
+        distsFromPointside2 = sqrt(side2y.^2 + side2x.^2);
+        [side1Dist,side1Idx] = min(distsFromPointside1);
+        [side2Dist,side2Idx] = min(distsFromPointside2);
+
+        % The points - for debugging, currently.
+        side1Row = side1y(side1Idx) + y;
+        side1Col = side1x(side1Idx) + x;
+        side2Row = side2y(side2Idx) + y;
+        side2Col = side2x(side2Idx) + x;
+end % function
+
+% Give a point and an angle, return a binary image with a line drawn on it
+function linemap = rasterlineFromPoint(y,x,angle,mapHeight,mapWidth)
+
+    % % Method 1 (TODO does not work if line does not extend fully in height)
+    % adjacent = mapHeight - y + 1;
+    % opposite = adjacent * tand(angle);
+    % p1 = [mapHeight, x + opposite - 1];
+
+    % adjacent = y;
+    % opposite = adjacent * tand(angle);
+    % p2 = [1, x - opposite + 1];
+
+    % [xx yy] = bresenham(p1(2), p1(1), p2(2), p2(1));
+
+    % isInBounds = xx > 0 & yy > 0 & xx <= mapWidth & yy <= mapHeight;
+    % xxx = xx(isInBounds);
+    % yyy = yy(isInBounds);
+
+    % linemap = zeros(mapHeight, mapWidth);
+    % for j = 1:length(xxx)
+    %     linemap(yyy(j),xxx(j)) = 1;
+    % end
+
+    % assert(angle <=90 && angle >=-90, 'angle must be between -90 and 90 degrees');
+
+
+    % Hesse normal form to avoid infinite slope problems
+    % angle is relative to positive y axis
+    theta = angle - 90;
+    r = x*cosd(theta) + y*sind(theta);
+
+    getY = @(x) ( r - x*cosd(theta) ) / sind(theta);
+    getX = @(y) ( r - y*sind(theta) ) / cosd(theta);
+
+    P1Y = getY(1);
+    P1X = getX(1);
+    P2Y = getY(mapHeight);
+    P2X = getX(mapWidth);
+    
+
+    % x = slope * y + offset
+    % y = (x - offset) / slope
+    slope = tand(angle);
+    assert(slope ~= Inf, 'infinite slope');
+    offset = x - slope * y;
+
+    getXr = @(y) slope * y + offset;
+    getYr = @(x) (x - offset) / slope;
+
+    P1Yr = getYr(1);
+    P1Xr = getXr(1);
+    P2Yr = getYr(mapHeight);
+    P2Xr = getXr(mapWidth);
+
+    % isInXRange = P1X > 0 && P1X <= mapWidth;
+    % isInYRange = P1Y > 0 && P1Y <= mapHeight;
+    % if isInXRange
+    %     p1 = [1, P1X];
+    % elseif isInYRange
+    %     p1 = [P1Y, 1];
+    % else
+    %     error('invalid point');
+    % end
+
+
+
+    isInXRange = P2X > 0 && P2X <= mapWidth;
+    isInYRange = P2Y > 0 && P2Y <= mapHeight;
+    
+
+    % Get one extremum of the point
+    mapHeightMinusY = mapHeight - y;
+    mapWidthMinusX = mapWidth - x;
+    yProjection1 = mapHeightMinusY;
+    xProjection1 = yProjection1 * tand(angle);
+    xProjection2 = mapWidthMinusX;
+    yProjection2 = xProjection2 / tand(angle);
+    isInXRange = (xProjection1 + x > 0) && xProjection1 <= mapWidthMinusX;
+    isInYRange = (yProjection2 + y > 0) && yProjection2 <= mapHeightMinusY;
+    if isInXRange
+        p1 = [mapHeight, x + xProjection1 - 1];
+    elseif isInYRange
+        p1 = [y + yProjection2 - 1, mapWidth];
+    else
+        error('invalid point');
+    end
+
+    % Get the other extremum of the point
+    adjacent1 = y;
+    opposite1 = adjacent1 * tand(angle);
+    opposite2 = x;
+    adjacent2 = opposite2 / tand(angle);
+    if opposite1 < x
+        p2 = [1, x - opposite1 + 1];
+    elseif adjacent2 < y
+        p2 = [y - adjacent2 + 1, 1];
+    else
+        error('invalid point');
+    end
+
+    [xx yy] = bresenham(p1(2), p1(1), p2(2), p2(1));
+
+    isInBounds = xx > 0 & yy > 0 & xx <= mapWidth & yy <= mapHeight;
+    xxx = xx(isInBounds);
+    yyy = yy(isInBounds);
+
+    linemap = zeros(mapHeight, mapWidth);
+    for j = 1:length(xxx)
+        linemap(yyy(j),xxx(j)) = 1;
+    end
+
 end % function

@@ -33,9 +33,10 @@
 % ========================================
 % New Point Cloud
 
-% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
-imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
-imgNumber = '00111';
+imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
+imgNumber = '00001';
+% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
+% imgNumber = '00111';
 
 rgbFolder = fullfile(imgFolder, 'rgb');
 depthFolder = fullfile(imgFolder, 'depth');
@@ -114,17 +115,17 @@ wallMap = imgaussfilt(occupancyMap, sigmaWall) ~= 0; % > 1 for noise robustness
 totalMap = visibleMap | wallMap; % if obstacle occurs in either
 
 % not used. TODO remove
-feasibleStates = zeros(ySize, xSize, numAngles);
-for i = 1:numAngles
-    normalizedWheelchair = wheelchairShapeAngle(:,:,i) ./sum(sum( wheelchairShapeAngle(:,:,i) ));
-    feasibleStates(:,:,i) = conv2(double(totalMap), normalizedWheelchair, 'same');
-end % for
+% feasibleStates = zeros(ySize, xSize, numAngles);
+% for i = 1:numAngles
+%     normalizedWheelchair = wheelchairShapeAngle(:,:,i) ./sum(sum( wheelchairShapeAngle(:,:,i) ));
+%     feasibleStates(:,:,i) = conv2(double(totalMap), normalizedWheelchair, 'same');
+% end % for
 
 % ----------------------------------------
 % Find Best Wheelchair Configuration
 % ----------------------------------------
 potentialFunction = zeros(ySize, xSize, numAngles);
-potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle);
+potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle, angles);
 
 bestRow = -Inf;
 bestCol = -Inf;
@@ -169,9 +170,9 @@ end
 %     str = sprintf('Convolved at %d degrees', angles(i));
 %     title(str);
 % end
-figure;
-titlestringFunc = @(i) sprintf('feasibleStates: %d degrees', angles(i));
-plotConfigurationSpace(feasibleStates, titlestringFunc);
+% figure;
+% titlestringFunc = @(i) sprintf('feasibleStates: %d degrees', angles(i));
+% plotConfigurationSpace(feasibleStates, titlestringFunc);
 
 
 
