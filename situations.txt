@@ -3,7 +3,6 @@ For each, take a video panning left to right, then spin from -90 to 90 on right,
 | Back       | Left Side  | Right Side                         | Comments |
 |------------+------------+------------------------------------+----------|
 | Solid Wall | Solid Wall | Solid Wall, 1-2 chair lengths away |          |
-| Solid Wall | Solid Wall | Solid Wall, 2+ chair lengths away  |          |
 | Solid Wall | Solid Wall | Nothing                            |          |
 | Solid Wall | Chairs     | Chairs                             |          |
 | Solid Wall | Chairs     | Nothing                            |          |
@@ -12,3 +11,11 @@ For each, take a video panning left to right, then spin from -90 to 90 on right,
 | Solid Wall | Wheelchair | Wheelchair                         |          |
 | Solid Wall | Wheelchair | Nothing                            |          |
 | Solid Wall | Trashcan   | Nothing                            |          |
+| Table      | Solid Wall | Nothing                            |          |
+| Table      | Chairs     | Chairs                             |          |
+| Table      | Chairs     | Nothing                            |          |
+| Table      | Table      | Table                              |          |
+| Table      | Table      | Nothing                            |          |
+| Table      | Wheelchair | Wheelchair                         |          |
+| Table      | Wheelchair | Nothing                            |          |
+| Table      | Trashcan   | Nothing                            |          |
