@@ -44,7 +44,7 @@ function [pointclouds, colordata] = rosbagToPointCloud2(bagFilePath, outputFolde
     for i = 1:numMessages
 
         pointsBatch = readMessages(messageStream,i);
-        points = pointsBatch{1}; % pointsBatch is 1x1 cell array since readMessages only reads ith message
+        points = pointsBatch{1}; % pointsBatch is 1x1 cell array since readMessages only reads the ith message
         points.PreserveStructureOnRead = true; % Makes points dimensions imHeight*imWidth*channels
         pointsXYZ = readXYZ(points);
         pointsRGB = readRGB(points);

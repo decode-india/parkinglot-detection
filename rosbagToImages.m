@@ -13,10 +13,10 @@ numBagFiles = size(bagFilenames, 1);
 % projectFolder = '/home/vgan/code/datasets/gan2015wheelchair';
 projectFolder = fullfile(bagFolder, 'matlab_extract');
 
-for i = 1:1
+for i = 1:numBagFiles
     bagFullFile = fullfile(bagFolder, bagFilenames{i});
     outputFolder = fullfile(projectFolder, bagFilenames{i});
-    rosbagToPointCloud2(bagFullFile, outputFolder);
+    [pointclouds, colordata] = rosbagToPointCloud2(bagFullFile, outputFolder);
 end % for
 
 % p = pointCloud(points, 'Color', imgRGB);
