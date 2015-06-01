@@ -1,26 +1,25 @@
 % same as one, but using Matlab Robotics System Toolbox
-function [pointclouds, colordata] = rosbagToPointCloud2(bagfile, outputFolder)
+% Input:
+%   bagFilePath: full file path of .bag file
+%   outputFolder (optional): folder to save output (takes a while)
+% Output:
+%   pointclouds: struct of imHeight x imWidth x 3 (x, y, z) arrays, single 0 to ~10 (metres).
+%   colordata: struct of imHeight x imWidth x 3 (r, g, b) arrays, double 0 to 1.
+function [pointclouds, colordata] = rosbagToPointCloud2(bagFilePath, outputFolder)
 
-    bag = rosbag(bagfile);
-
-    cameraDepthTopic = '/camera/depth/image';
-    cameraDepthRegisteredTopic = '/camera/depth_registered/points';
-    messageStream = select(bag, 'Topic', cameraDepthRegisteredTopic);
-
-    numMessages = messageStream.NumMessages;
+    switch nargin
+        case 1
+            saveFiles = false;
+        case 2
+            saveFiles = true;
+    end % switch
 
     % ----------------------------------------
-    %% Nothing
-    % for i = 1:numMessages
-    for i = 1:1
-        pointsBatch = readMessages(messageStream,1:10);
-        points = pointsBatch{i};
-        points.PreserveStructureOnRead = true;
-        pointsXYZ = readXYZ(points);
-        pointsRGB = readRGB(points);
-
-        pointCloudFieldNames = {'x', 'y', 'z', 'rgb'};
-    end;
+    %% Read bag file
+    bag = rosbag(bagFilePath);
+    cameraDepthRegisteredTopic = '/camera/depth_registered/points';
+    messageStream = select(bag, 'Topic', cameraDepthRegisteredTopic);
+    numMessages = messageStream.NumMessages;
 
     % ----------------------------------------
     %% Metadata
@@ -31,12 +30,13 @@ function [pointclouds, colordata] = rosbagToPointCloud2(bagfile, outputFolder)
     channels = firstFrame.PointStep; % number of channels for each pixel
 
     % ----------------------------------------
-
-    depthFolder = fullfile(outputFolder, 'depth');
-    rgbFolder = fullfile(outputFolder, 'rgb');
-    makeFolder(depthFolder);
-    makeFolder(rgbFolder);
-    numFormat = '%05d'; % always 5 digits long
+    if saveFiles
+        depthFolder = fullfile(outputFolder, 'depth');
+        rgbFolder = fullfile(outputFolder, 'rgb');
+        makeFolder(depthFolder);
+        makeFolder(rgbFolder);
+        numFormat = '%05d'; % always 5 digits long
+    end
 
     %% For each timestep, generate a point cloud
     pointclouds = cell(numMessages, 1);
@@ -44,23 +44,27 @@ function [pointclouds, colordata] = rosbagToPointCloud2(bagfile, outputFolder)
     for i = 1:numMessages
 
         pointsBatch = readMessages(messageStream,i);
-        points = pointsBatch{1};
+        points = pointsBatch{1}; % pointsBatch is 1x1 cell array since readMessages only reads ith message
         points.PreserveStructureOnRead = true; % Makes points dimensions imHeight*imWidth*channels
         pointsXYZ = readXYZ(points);
         pointsRGB = readRGB(points);
 
-        depthPath = fullfile(depthFolder, [num2str(i, numFormat) '.mat']);
-        save(depthPath, 'pointsXYZ');
+        if saveFiles
+            depthPath = fullfile(depthFolder, [num2str(i, numFormat) '.mat']);
+            save(depthPath, 'pointsXYZ');
 
-        rgbImgPath = fullfile(rgbFolder, [num2str(i, numFormat) '.png']);
-        imwrite(pointsRGB, rgbImgPath)
+            rgbImgPath = fullfile(rgbFolder, [num2str(i, numFormat) '.png']);
+            imwrite(pointsRGB, rgbImgPath);
+        end
 
         pointclouds{i} = pointsXYZ;
         colordata{i} = pointsRGB;
     end % for
 
-    pointCloudPath = fullfile(depthFolder, ['pointclouds.mat']);
-    save(pointCloudPath, 'pointclouds');
-    colordataPath = fullfile(rgbFolder, ['colordata.mat']);
-    save(colordataPath, 'colordata');
+    if saveFiles
+        pointCloudPath = fullfile(depthFolder, ['pointclouds.mat']);
+        save(pointCloudPath, 'pointclouds', '-v7.3');
+        colordataPath = fullfile(rgbFolder, ['colordata.mat']);
+        save(colordataPath, 'colordata', '-v7.3');
+    end
 end % function
