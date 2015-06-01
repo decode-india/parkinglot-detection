@@ -2,16 +2,22 @@
 % ----------------------------------------
 % load Bag
 % ----------------------------------------
-bagFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-03-22-wheelchairtests'
-bagfile = '2015-03-22-16-41-16';
+% bagFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-03-22-wheelchairtests';
+bagFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables';
+% bagfile = '2015-03-22-16-41-16';
 % bagfile = '2015-03-22-16-37-50';
-bagFullFile = fullfile(bagFolder, [bagfile '.bag']);
 
-projectFolder = '/home/vgan/code/datasets/gan2015wheelchair';
-outputFolder = fullfile(projectFolder, [bagfile]);
+bagFilenames = filenamesInFolder(bagFolder, '.bag');
+numBagFiles = size(bagFilenames, 1);
 
-% [points, imgRGB] = rosbagToPointCloud(bagFullFile, outputFolder);
-[points, imgRGB] = rosbagToPointCloud2(bagFullFile, outputFolder);
+% projectFolder = '/home/vgan/code/datasets/gan2015wheelchair';
+projectFolder = fullfile(bagFolder, 'matlab_extract');
+
+for i = 1:1
+    bagFullFile = fullfile(bagFolder, bagFilenames{i});
+    outputFolder = fullfile(projectFolder, bagFilenames{i});
+    rosbagToPointCloud2(bagFullFile, outputFolder);
+end % for
 
 % p = pointCloud(points, 'Color', imgRGB);
 % showPointCloud(p);
