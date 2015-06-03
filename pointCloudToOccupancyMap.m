@@ -1,4 +1,4 @@
-function [occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, newOrigin, gridStep, groundThreshold)
+function [objectMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, newOrigin, gridStep, groundThreshold)
     % ----------------------------------------
     % Easier names
     % ----------------------------------------
@@ -9,20 +9,25 @@ function [occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, ne
     yLength = length(yScale);
 
     % ----------------------------------------
-    % occupancyMap and groundMap are 2D histograms. Put points in these
+    % objectMap and groundMap are 2D histograms. Put points in these
     % histograms.
     % ----------------------------------------
-    occupancyMap = zeros(yLength, xLength);
+    objectMap = zeros(yLength, xLength);
     groundMap = zeros(yLength, xLength);
     for p = 1:pCloud.Count
         point = pCloud.Location(p,:);
+
+        % find histogram bin
         xBox = find(xScale >= point(1), 1, 'first');
         yBox = find(yScale >= point(2), 1, 'first');
+
+        % classify pixel
         isGroundPixel = abs(point(3)) < groundThreshold;
         if isGroundPixel
             groundMap(yBox,xBox) = groundMap(yBox,xBox) + 1; 
+        % TODO if isAbove3metres, classify as roof
         else
-            occupancyMap(yBox,xBox) = occupancyMap(yBox,xBox) + 1;
+            objectMap(yBox,xBox) = objectMap(yBox,xBox) + 1;
         end
     end % for
 
@@ -41,7 +46,7 @@ function [occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, ne
     if showPlots
         figure;
         subplot(2,1,1)
-        imshow(occupancyMap)
+        imshow(objectMap)
         title('Occupancy Map');
         subplot(2,1,2)
         imshow(groundMap)
