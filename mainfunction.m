@@ -33,10 +33,28 @@
 % ========================================
 % New Point Cloud
 
-imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
-imgNumber = '00001';
+% imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
+% imgNumber = '00001';
+
 % imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
 % imgNumber = '00111';
+
+% Table - Chair - Chair
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-17-58.bag';
+% imgNumber = '00001';
+
+% Table - Chair - Nothing
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-27-49.bag';
+% imgNumber = '00031';
+
+% Table - Wheelchair - Wheelchair
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
+% imgNumber = '00001';
+
+% Nothing - Wheelchair - Wheelchair
+imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-47-32.bag';
+imgNumber = '00001';
+
 
 rgbFolder = fullfile(imgFolder, 'rgb');
 depthFolder = fullfile(imgFolder, 'depth');
@@ -72,12 +90,35 @@ ransacParams.maxInclinationAngle = 30; % in degrees
 % Point Cloud to Occupancy Map
 % ----------------------------------------
 % groundMap: the visible ground
-% occupancyMap: what's occupied above ground
-gridStepMap = 0.02; % in metres
+% objectMap: what's occupied above ground
+% gridStepMap = 0.02; % in metres
+gridStepMap = 0.05; % each pixel represents grisStepMap metres
 groundThreshold = 0.1; % in metres
-[occupancyMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
-[ySize,xSize] = size(occupancyMap);
+[objectMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
+[ySize,xSize] = size(objectMap);
 
+% ----------------------------------------
+% Generate Occupancy Map 
+% ----------------------------------------
+% Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
+sigmaGround = 0.5;
+sigmaWall = 0.7;
+visibleMap = imgaussfilt(groundMap, sigmaGround) == 0; 
+wallMap = imgaussfilt(objectMap, sigmaWall) ~= 0; % > 1 for noise robustness
+totalMap = visibleMap | wallMap; % if obstacle occurs in either
+
+figure;
+subplot(1,2,1)
+map = zeros(size(groundMap,1),size(groundMap,2),3);
+map(:,:,1) = objectMap;
+map(:,:,2) = groundMap;
+map(:,:,3) = objectMap;
+imshow(map)
+title('Occupancy Map (Magenta) and Visible Ground Plane (Green)');
+
+subplot(1,2,2)
+imshow(totalMap);
+title('Permissible Configurations (0/Black is Permissible)');
 
 % ========================================
 % Convolution
@@ -101,18 +142,10 @@ numAngles = 9;
 minAngle = -20;
 maxAngle = 20;
 angles = linspace(minAngle, maxAngle, numAngles);
-wheelchairsize = [41 31]; % make odd to use centre point as reference
+% wheelchairsize = [41 31]; % make odd to use centre point as reference
+wheelchairsize = [15 11]; % make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
 
-% ----------------------------------------
-% Generate Occupancy Map 
-% ----------------------------------------
-% Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
-sigmaGround = 0.5;
-sigmaWall = 0.7;
-visibleMap = imgaussfilt(groundMap, sigmaGround) == 0; 
-wallMap = imgaussfilt(occupancyMap, sigmaWall) ~= 0; % > 1 for noise robustness
-totalMap = visibleMap | wallMap; % if obstacle occurs in either
 
 % not used. TODO remove
 % feasibleStates = zeros(ySize, xSize, numAngles);
@@ -181,25 +214,6 @@ end
 % showPointCloud(p);
 % showPointCloud(select(p, planeIndicies));
 
-figure;
-subplot(2,2,1)
-map = zeros(size(groundMap,1),size(groundMap,2),3);
-map(:,:,1) = groundMap;
-map(:,:,2) = occupancyMap;
-map(:,:,3) = occupancyMap;
-imshow(map)
-title('Occupancy Map (Cyan) and Visible Ground Plane (Red)');
-
-subplot(2,2,2)
-map2 = zeros(size(groundMap,1),size(groundMap,2),3);
-map2(:,:,1) = totalMap;
-map2(:,:,3) = totalMap;
-imshow(map2)
-title('Permissible Configurations');
-
-subplot(2,2,3)
-imshow(potentialFunction(:,:,bestAngle), [], 'Colormap', parula)
-title('Potential Function for Chosen Angle (Red is Better)');
 
 % subplot(2,2,4)
 figure
