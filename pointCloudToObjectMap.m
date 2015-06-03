@@ -1,7 +1,8 @@
-function [objectMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, newOrigin, gridStep, groundThreshold)
+function [objectMap, groundMap, origin] = pointCloudToObjectMap(pCloud, newOrigin, gridStep, groundThreshold)
     % ----------------------------------------
     % Easier names
     % ----------------------------------------
+    % xScale: metres corresponding to each pixel
     xScale = pCloud.XLimits(1):gridStep:pCloud.XLimits(2);
     yScale = pCloud.YLimits(1):gridStep:pCloud.YLimits(2);
     zScale = pCloud.ZLimits(1):gridStep:pCloud.ZLimits(2);
@@ -18,8 +19,7 @@ function [objectMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, newOr
         point = pCloud.Location(p,:);
 
         % find histogram bin
-        xBox = find(xScale >= point(1), 1, 'first');
-        yBox = find(yScale >= point(2), 1, 'first');
+        [yBox, xBox] = XYZtoXY(point, xScale, yScale);
 
         % classify pixel
         isGroundPixel = abs(point(3)) < groundThreshold;
@@ -38,18 +38,9 @@ function [objectMap, groundMap, origin] = pointCloudToOccupancyMap(pCloud, newOr
     xBox = find(xScale >= newOrigin(1), 1, 'first');
     yBox = find(yScale >= newOrigin(2), 1, 'first');
     origin = [yBox, xBox]; % [y, x]
-
-    % ----------------------------------------
-    % Plot
-    % ----------------------------------------
-    showPlots = true;
-    if showPlots
-        figure;
-        subplot(2,1,1)
-        imshow(objectMap)
-        title('Occupancy Map');
-        subplot(2,1,2)
-        imshow(groundMap)
-        title('Ground Map');
-    end
 end % function
+
+function [yBox, xBox] = XYZtoXY(point, xScale, yScale)
+    xBox = find(xScale >= point(1), 1, 'first');
+    yBox = find(yScale >= point(2), 1, 'first');
+end
