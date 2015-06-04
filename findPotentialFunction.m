@@ -2,27 +2,46 @@
 function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairShapeAngle, angles)
 
     [numRows,numCols] = size(totalMap);
-    numAngles = size(wheelchairShapeAngle, 3);
+    numAngles = size(angles, 2);
     
+    wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, numRows, numCols);
+
     measureAll = zeros(numRows,numCols,numAngles);
     for thetaIdx = 1:numAngles
         thetaIdx
     for r = 1:numRows
     for c = 1:numCols
-        measureAll(r,c,thetaIdx) = computePotential(wheelchairShapeAngle(:,:,thetaIdx), totalMap, c, r, angles(thetaIdx));
+        measureAll(r,c,thetaIdx) = computePotential(wheelchairMaps{r,c,thetaIdx}, totalMap, c, r, angles(thetaIdx));
     end % for
     end % for
     end % for
 
 end % function
 
-function measure = computePotential(wheelchairShape, totalMap, x, y, theta) 
-    [numRows,numCols] = size(totalMap);
-    
-    wheelChair = zeros(numRows,numCols);
-    wheelChair(y,x) = 1;
-    wheelChair = conv2(wheelChair, wheelchairShape, 'same');
-    wheelChair = wheelChair ~= 0;
+function wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, numRows, numCols)
+    numAngles = size(wheelchairShapeAngle, 3);
+    wheelchairMaps = cell(numRows, numCols, numAngles);
+    for thetaIdx = 1:numAngles
+        thetaIdx
+    for r = 1:numRows
+    for c = 1:numCols
+        wheelChair = zeros(numRows,numCols);
+        wheelChair(r,c) = 1;
+        wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,thetaIdx), 'same');
+        wheelChair = wheelChair ~= 0;
+        wheelchairMaps{r,c,thetaIdx} = wheelChair;
+    end % for
+    end % for
+    end % for
+end % function
+
+function measure = computePotential(wheelChair, totalMap, x, y, theta) 
+    % [numRows,numCols] = size(totalMap);
+    % 
+    % wheelChair = zeros(numRows,numCols);
+    % wheelChair(y,x) = 1;
+    % wheelChair = conv2(wheelChair, wheelchairShape, 'same');
+    % wheelChair = wheelChair ~= 0;
 
     % figure
     % imshow(wheelChair);
