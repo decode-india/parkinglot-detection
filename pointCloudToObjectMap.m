@@ -35,11 +35,15 @@ function [objectMap, groundMap, origin] = pointCloudToObjectMap(pCloud, newOrigi
     % Find histogram bin (location in map image) of specific point newOrigin
     % TODO separate function
     % ----------------------------------------
-    xBox = find(xScale >= newOrigin(1), 1, 'first');
-    yBox = find(yScale >= newOrigin(2), 1, 'first');
+    [yBox, xBox] = XYZtoXY(point, xScale, yScale);
     origin = [yBox, xBox]; % [y, x]
 end % function
 
+% Projects a point in 3D down onto a 2d map
+% point: 3x1 (x,y,z)
+% xScale: mx1 vector of bins in metres
+% yScale: nx1 vector of bins in metres
+% output: which bin to put the point 'point' in
 function [yBox, xBox] = XYZtoXY(point, xScale, yScale)
     xBox = find(xScale >= point(1), 1, 'first');
     yBox = find(yScale >= point(2), 1, 'first');

@@ -48,12 +48,12 @@
 % imgNumber = '00031';
 
 % Table - Wheelchair - Wheelchair
-% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
-% imgNumber = '00001';
+imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
+imgNumber = '00001';
 
 % Nothing - Wheelchair - Wheelchair
-imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-47-32.bag';
-imgNumber = '00001';
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-47-32.bag';
+% imgNumber = '00001';
 
 
 rgbFolder = fullfile(imgFolder, 'rgb');
@@ -87,38 +87,36 @@ ransacParams.maxInclinationAngle = 30; % in degrees
 [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams);
 
 % ----------------------------------------
-% Point Cloud to Occupancy Map
+% Point Cloud to Ground and Object Map
 % ----------------------------------------
 % groundMap: the visible ground
 % objectMap: what's occupied above ground
-% gridStepMap = 0.02; % in metres
-gridStepMap = 0.05; % each pixel represents grisStepMap metres
+gridStepMap = 0.05;    % each pixel represents grisStepMap metres
 groundThreshold = 0.1; % in metres
-[objectMap, groundMap, origin] = pointCloudToOccupancyMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
-[ySize,xSize] = size(objectMap);
+[objectMapHist, groundMapHist, origin] = pointCloudToObjectMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
+[mapYSize,mapXSize] = size(objectMapHist);
 
 % ----------------------------------------
 % Generate Occupancy Map 
 % ----------------------------------------
 % Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
 sigmaGround = 0.5;
+groundMap = imgaussfilt(groundMapHist, sigmaGround) ~= 0; 
 sigmaWall = 0.7;
-visibleMap = imgaussfilt(groundMap, sigmaGround) == 0; 
-wallMap = imgaussfilt(objectMap, sigmaWall) ~= 0; % > 1 for noise robustness
-totalMap = visibleMap | wallMap; % if obstacle occurs in either
+objectMap = imgaussfilt(objectMapHist, sigmaWall) ~= 0; % > 1 for noise robustness
+unknownMap = ~groundMap & ~objectMap;
+showPlots = true;
+if showPlots
+    figure;
+    map = zeros(size(groundMap,1),size(groundMap,2),3);
+    map(:,:,1) = objectMap;
+    map(:,:,2) = groundMap & ~objectMap;
+    map(:,:,3) = unknownMap;
+    imshow(map)
+    title('Occupancy Map (Magenta) and Visible Ground Plane (Green)');
+end
 
-figure;
-subplot(1,2,1)
-map = zeros(size(groundMap,1),size(groundMap,2),3);
-map(:,:,1) = objectMap;
-map(:,:,2) = groundMap;
-map(:,:,3) = objectMap;
-imshow(map)
-title('Occupancy Map (Magenta) and Visible Ground Plane (Green)');
-
-subplot(1,2,2)
-imshow(totalMap);
-title('Permissible Configurations (0/Black is Permissible)');
+totalMap = ~groundMap | objectMap; % if obstacle occurs in either
 
 % ========================================
 % Convolution
@@ -129,7 +127,7 @@ title('Permissible Configurations (0/Black is Permissible)');
 % Modifying Occupancy Map
 % ----------------------------------------
 % ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
-% [XX,YY] = meshgrid(1:xSize,1:ySize);
+% [XX,YY] = meshgrid(1:mapXSize,1:mapYSize);
 % distFromOrigin = sqrt((XX-origin(2)).^2 + (YY-origin(1)).^2);
 % radius = 0.5;
 % viablePixels = distFromOrigin < 50/gridStepMap;
@@ -146,20 +144,25 @@ angles = linspace(minAngle, maxAngle, numAngles);
 wheelchairsize = [15 11]; % make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
 
-
+% ----------------------------------------
+% Find Feasible Wheelchair Configurations
+% ----------------------------------------
+feasibleStates = zeros(mapYSize, mapXSize, numAngles);
 % not used. TODO remove
-% feasibleStates = zeros(ySize, xSize, numAngles);
+% feasibleStates = zeros(mapYSize, mapXSize, numAngles);
 % for i = 1:numAngles
 %     normalizedWheelchair = wheelchairShapeAngle(:,:,i) ./sum(sum( wheelchairShapeAngle(:,:,i) ));
 %     feasibleStates(:,:,i) = conv2(double(totalMap), normalizedWheelchair, 'same');
 % end % for
 
+
 % ----------------------------------------
 % Find Best Wheelchair Configuration
 % ----------------------------------------
-potentialFunction = zeros(ySize, xSize, numAngles);
+potentialFunction = zeros(mapYSize, mapXSize, numAngles);
 potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle, angles);
 
+% Get Best Potential Function
 bestRow = -Inf;
 bestCol = -Inf;
 bestAngle = -Inf; % degrees
@@ -179,7 +182,7 @@ end % for
 % Generate Best Wheelchair Configuration on Map
 % ----------------------------------------
 if bestRow ~= -Inf
-    wheelChair = zeros(ySize,xSize);
+    wheelChair = zeros(mapYSize,mapXSize);
     wheelChair(bestRow,bestCol) = 1;
     wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,bestAngle), 'same') ~= 0;
     ( sum(totalMap(wheelChair) == 1) == 0 ) % no collisions
@@ -217,7 +220,7 @@ end
 
 % subplot(2,2,4)
 figure
-map3 = zeros(size(groundMap,1),size(groundMap,2),3);
+map3 = zeros(mapYSize, mapXSize);
 mapAndChair = wheelChair | totalMap;
 map3(:,:,1) = mapAndChair;
 map3(:,:,2) = wheelChair;

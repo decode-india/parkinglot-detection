@@ -33,26 +33,27 @@ function measure = computePotential(wheelchairShape, totalMap, x, y, theta)
     else
         % measure = sumSquaredClosestDistance(wheelChair, totalMap);
         % [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
-        % [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+        [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
 
         % [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
         % [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
         % measure = measure + measure2;
         
-        [measure, distanceTransform] = minOrientedSideDist(wheelChair, totalMap, theta);
-        [measure2, distanceTransform2] = minOrientedFrontDist(wheelChair, totalMap, theta);
+        % [measure, distanceTransform] = minOrientedSideDist(wheelChair, totalMap, theta);
+        % [measure2, distanceTransform2] = minOrientedFrontDist(wheelChair, totalMap, theta);
+        % measure = measure + measure2;
 
-        pointsToPlot = (x == 70 & y == 50) | (x == 79 & y == 53);
-        if pointsToPlot
-            figure
-            subplot(1,2,1)
-            imshow(distanceTransform, [0 30], 'Colormap', parula);
-            str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
-            title(str);
-            subplot(1,2,2)
-            imshow(totalMap, 'Colormap', parula);
-            title('Obstacle Map');
-        end % if
+        % pointsToPlot = (x == 70 & y == 50) | (x == 79 & y == 53);
+        % if pointsToPlot
+        %     figure
+        %     subplot(1,2,1)
+        %     imshow(distanceTransform, [0 30], 'Colormap', parula);
+        %     str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
+        %     title(str);
+        %     subplot(1,2,2)
+        %     imshow(totalMap, 'Colormap', parula);
+        %     title('Obstacle Map');
+        % end % if
     end
 end % function
 
@@ -309,10 +310,10 @@ function linemap = rasterlineFromPoint(y,x,angle,mapHeight,mapWidth)
     % Hesse normal form to avoid infinite slope problems
     % angle is relative to positive y axis
     theta = angle - 90;
-    r = x*cosd(theta) + y*sind(theta);
+    r = y*sind(theta) - x*cosd(theta) ;
 
-    getY = @(x) ( r - x*cosd(theta) ) / sind(theta);
-    getX = @(y) ( r - y*sind(theta) ) / cosd(theta);
+    getY = @(x)  ( r + x*cosd(theta) ) / sind(theta);
+    getX = @(y) -( r - y*sind(theta) ) / cosd(theta);
 
     P1Y = getY(1);
     P1X = getX(1);
@@ -322,17 +323,17 @@ function linemap = rasterlineFromPoint(y,x,angle,mapHeight,mapWidth)
 
     % x = slope * y + offset
     % y = (x - offset) / slope
-    slope = tand(angle);
-    assert(slope ~= Inf, 'infinite slope');
-    offset = x - slope * y;
+    % slope = tand(angle);
+    % assert(slope ~= Inf, 'infinite slope');
+    % offset = x - slope * y;
 
-    getXr = @(y) slope * y + offset;
-    getYr = @(x) (x - offset) / slope;
+    % getXr = @(y) slope * y + offset;
+    % getYr = @(x) (x - offset) / slope;
 
-    P1Yr = getYr(1);
-    P1Xr = getXr(1);
-    P2Yr = getYr(mapHeight);
-    P2Xr = getXr(mapWidth);
+    % P1Yr = getYr(1);
+    % P1Xr = getXr(1);
+    % P2Yr = getYr(mapHeight);
+    % P2Xr = getXr(mapWidth);
 
     % isInXRange = P1X > 0 && P1X <= mapWidth;
     % isInYRange = P1Y > 0 && P1Y <= mapHeight;
@@ -344,11 +345,8 @@ function linemap = rasterlineFromPoint(y,x,angle,mapHeight,mapWidth)
     %     error('invalid point');
     % end
 
-
-
     isInXRange = P2X > 0 && P2X <= mapWidth;
     isInYRange = P2Y > 0 && P2Y <= mapHeight;
-    
 
     % Get one extremum of the point
     mapHeightMinusY = mapHeight - y;
