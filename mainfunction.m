@@ -99,11 +99,21 @@ groundThreshold = 0.1; % in metres
 % ----------------------------------------
 % Generate Occupancy Map 
 % ----------------------------------------
+% Each pixel is either in objectMap, groundMap, or unknownMap
 % Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
-sigmaGround = 0.5;
-groundMap = imgaussfilt(groundMapHist, sigmaGround) ~= 0; 
 sigmaWall = 0.7;
 objectMap = imgaussfilt(objectMapHist, sigmaWall) ~= 0; % > 1 for noise robustness
+
+
+sigmaGround = 0.5;
+groundMap = imgaussfilt(groundMapHist, sigmaGround) ~= 0; 
+groundMap(objectMap) = 0;
+% ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
+[XX,YY] = meshgrid(1:mapXSize,1:mapYSize);
+distFromOrigin = sqrt((XX-origin(2)).^2 + (YY-origin(1)).^2);
+viablePixels = distFromOrigin < 0.5/gridStepMap;
+groundMap(viablePixels) = true;
+
 unknownMap = ~groundMap & ~objectMap;
 showPlots = true;
 if showPlots
@@ -123,15 +133,6 @@ totalMap = ~groundMap | objectMap; % if obstacle occurs in either
 % ========================================
 
 
-% ----------------------------------------
-% Modifying Occupancy Map
-% ----------------------------------------
-% ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
-% [XX,YY] = meshgrid(1:mapXSize,1:mapYSize);
-% distFromOrigin = sqrt((XX-origin(2)).^2 + (YY-origin(1)).^2);
-% radius = 0.5;
-% viablePixels = distFromOrigin < 50/gridStepMap;
-% groundMap(viablePixels) = true;
 
 % ----------------------------------------
 % Generate Wheelchair
@@ -143,11 +144,13 @@ angles = linspace(minAngle, maxAngle, numAngles);
 % wheelchairsize = [41 31]; % make odd to use centre point as reference
 wheelchairsize = [15 11]; % make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
+wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
 
 % ----------------------------------------
 % Find Feasible Wheelchair Configurations
 % ----------------------------------------
 feasibleStates = zeros(mapYSize, mapXSize, numAngles);
+feasibleStates = findFeasibleStates(groundMap, wheelchairMaps, origin);
 % not used. TODO remove
 % feasibleStates = zeros(mapYSize, mapXSize, numAngles);
 % for i = 1:numAngles
@@ -160,7 +163,7 @@ feasibleStates = zeros(mapYSize, mapXSize, numAngles);
 % Find Best Wheelchair Configuration
 % ----------------------------------------
 potentialFunction = zeros(mapYSize, mapXSize, numAngles);
-potentialFunction = findPotentialFunction(totalMap, origin, wheelchairShapeAngle, angles);
+potentialFunction = findPotentialFunction(totalMap, origin, wheelchairMaps, angles, feasibleStates);
 
 % Get Best Potential Function
 bestRow = -Inf;

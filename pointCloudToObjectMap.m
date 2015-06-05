@@ -35,7 +35,7 @@ function [objectMap, groundMap, origin] = pointCloudToObjectMap(pCloud, newOrigi
     % Find histogram bin (location in map image) of specific point newOrigin
     % TODO separate function
     % ----------------------------------------
-    [yBox, xBox] = XYZtoXY(point, xScale, yScale);
+    [yBox, xBox] = XYZtoXY(newOrigin, xScale, yScale);
     origin = [yBox, xBox]; % [y, x]
 end % function
 

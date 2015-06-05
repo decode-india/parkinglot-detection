@@ -1,38 +1,22 @@
 % Find the desirability for each configuration
-function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairShapeAngle, angles)
-
+function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairMaps, angles, feasibleStates)
     [numRows,numCols] = size(totalMap);
     numAngles = size(angles, 2);
     
-    wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, numRows, numCols);
-
     measureAll = zeros(numRows,numCols,numAngles);
     for thetaIdx = 1:numAngles
         thetaIdx
     for r = 1:numRows
     for c = 1:numCols
-        measureAll(r,c,thetaIdx) = computePotential(wheelchairMaps{r,c,thetaIdx}, totalMap, c, r, angles(thetaIdx));
+        if ~feasibleStates(r,c,thetaIdx)
+            measureAll(r,c,thetaIdx) = -Inf;
+        else
+            measureAll(r,c,thetaIdx) = computePotential(wheelchairMaps{r,c,thetaIdx}, totalMap, c, r, angles(thetaIdx));
+        end % if
     end % for
     end % for
     end % for
 
-end % function
-
-function wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, numRows, numCols)
-    numAngles = size(wheelchairShapeAngle, 3);
-    wheelchairMaps = cell(numRows, numCols, numAngles);
-    for thetaIdx = 1:numAngles
-        thetaIdx
-    for r = 1:numRows
-    for c = 1:numCols
-        wheelChair = zeros(numRows,numCols);
-        wheelChair(r,c) = 1;
-        wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,thetaIdx), 'same');
-        wheelChair = wheelChair ~= 0;
-        wheelchairMaps{r,c,thetaIdx} = wheelChair;
-    end % for
-    end % for
-    end % for
 end % function
 
 function measure = computePotential(wheelChair, totalMap, x, y, theta) 
@@ -46,6 +30,7 @@ function measure = computePotential(wheelChair, totalMap, x, y, theta)
     % figure
     % imshow(wheelChair);
 
+    % TODO remove
     collisions = (totalMap(wheelChair) == 1);
     if any(collisions)
         measure = -Inf;
