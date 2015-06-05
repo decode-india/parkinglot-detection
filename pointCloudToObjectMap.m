@@ -1,11 +1,11 @@
-function [objectMap, groundMap, origin] = pointCloudToObjectMap(pCloud, newOrigin, gridStep, groundThreshold)
+function [objectMap, groundMap, originMap] = pointCloudToObjectMap(pCloud, originPointcloud, metresPerMapUnit, groundThreshold)
     % ----------------------------------------
     % Easier names
     % ----------------------------------------
     % xScale: metres corresponding to each pixel
-    xScale = pCloud.XLimits(1):gridStep:pCloud.XLimits(2);
-    yScale = pCloud.YLimits(1):gridStep:pCloud.YLimits(2);
-    zScale = pCloud.ZLimits(1):gridStep:pCloud.ZLimits(2);
+    xScale = pCloud.XLimits(1):metresPerMapUnit:pCloud.XLimits(2);
+    yScale = pCloud.YLimits(1):metresPerMapUnit:pCloud.YLimits(2);
+    zScale = pCloud.ZLimits(1):metresPerMapUnit:pCloud.ZLimits(2);
     xLength = length(xScale);
     yLength = length(yScale);
 
@@ -32,11 +32,11 @@ function [objectMap, groundMap, origin] = pointCloudToObjectMap(pCloud, newOrigi
     end % for
 
     % ----------------------------------------
-    % Find histogram bin (location in map image) of specific point newOrigin
+    % Find histogram bin (location in map image) of specific point originPointcloud
     % TODO separate function
     % ----------------------------------------
-    [yBox, xBox] = XYZtoXY(newOrigin, xScale, yScale);
-    origin = [yBox, xBox]; % [y, x]
+    [yBox, xBox] = XYZtoXY(originPointcloud, xScale, yScale);
+    originMap = [yBox, xBox]; % [y, x]
 end % function
 
 % Projects a point in 3D down onto a 2d map

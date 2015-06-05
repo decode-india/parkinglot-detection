@@ -75,6 +75,9 @@ imshow(pointsXYZ(:,:,3), [])
 colormap(parula)
 title('Depth Image');
 
+% ========================================
+% Generate ground/object maps 
+% ========================================
 % ----------------------------------------
 % Process Point Cloud
 % ----------------------------------------
@@ -84,16 +87,16 @@ title('Depth Image');
 voxelGridSize = 0.01; % in metres
 ransacParams.floorPlaneTolerance = 0.02; % tolerance in m
 ransacParams.maxInclinationAngle = 30; % in degrees
-[pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams);
+[pointCloudRotated, originPointcloud] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams);
 
 % ----------------------------------------
 % Point Cloud to Ground and Object Map
 % ----------------------------------------
 % groundMap: the visible ground
 % objectMap: what's occupied above ground
-gridStepMap = 0.05;    % each pixel represents grisStepMap metres
+MetresPerMapUnit = 0.05;    % each pixel represents grisStepMap metres
 groundThreshold = 0.1; % in metres
-[objectMapHist, groundMapHist, origin] = pointCloudToObjectMap(pointCloudRotated, newOrigin, gridStepMap, groundThreshold);
+[objectMapHist, groundMapHist, origin] = pointCloudToObjectMap(pointCloudRotated, originPointcloud, MetresPerMapUnit, groundThreshold);
 [mapYSize,mapXSize] = size(objectMapHist);
 
 % ----------------------------------------
@@ -101,17 +104,18 @@ groundThreshold = 0.1; % in metres
 % ----------------------------------------
 % Each pixel is either in objectMap, groundMap, or unknownMap
 % Apply 0.5 sigma Gaussian blur to get rid of small holes in perception
+% TODO morphological dilation?
 sigmaWall = 0.7;
 objectMap = imgaussfilt(objectMapHist, sigmaWall) ~= 0; % > 1 for noise robustness
-
 
 sigmaGround = 0.5;
 groundMap = imgaussfilt(groundMapHist, sigmaGround) ~= 0; 
 groundMap(objectMap) = 0;
+
 % ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
-[XX,YY] = meshgrid(1:mapXSize,1:mapYSize);
-distFromOrigin = sqrt((XX-origin(2)).^2 + (YY-origin(1)).^2);
-viablePixels = distFromOrigin < 0.5/gridStepMap;
+originDistMetres = 0.5;
+originDistMapUnits = originDistMetres/MetresPerMapUnit;
+viablePixels = circleAroundPoint(origin, mapYSize, mapXSize, originDistMapUnits);
 groundMap(viablePixels) = true;
 
 unknownMap = ~groundMap & ~objectMap;
@@ -125,17 +129,13 @@ if showPlots
     imshow(map)
     title('Occupancy Map (Magenta) and Visible Ground Plane (Green)');
 end
-
-totalMap = ~groundMap | objectMap; % if obstacle occurs in either
+totalMap = ~groundMap; % 0 if ground, 1 if nonground
 
 % ========================================
-% Convolution
+% Find a Good Wheelchair Configuration
 % ========================================
-
-
-
 % ----------------------------------------
-% Generate Wheelchair
+% Generate Wheelchair - TODO speed up
 % ----------------------------------------
 numAngles = 9;
 minAngle = -20;
@@ -151,87 +151,28 @@ wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
 % ----------------------------------------
 feasibleStates = zeros(mapYSize, mapXSize, numAngles);
 feasibleStates = findFeasibleStates(groundMap, wheelchairMaps, origin);
-% not used. TODO remove
-% feasibleStates = zeros(mapYSize, mapXSize, numAngles);
-% for i = 1:numAngles
-%     normalizedWheelchair = wheelchairShapeAngle(:,:,i) ./sum(sum( wheelchairShapeAngle(:,:,i) ));
-%     feasibleStates(:,:,i) = conv2(double(totalMap), normalizedWheelchair, 'same');
-% end % for
-
 
 % ----------------------------------------
-% Find Best Wheelchair Configuration
+% Find Wheelchair Configuration Potential Function
 % ----------------------------------------
 potentialFunction = zeros(mapYSize, mapXSize, numAngles);
 potentialFunction = findPotentialFunction(totalMap, origin, wheelchairMaps, angles, feasibleStates);
 
-% Get Best Potential Function
-bestRow = -Inf;
-bestCol = -Inf;
-bestAngle = -Inf; % degrees
-bestMaxPotential = -Inf;
-for i = 1:numAngles
-    maxPotential = max(max(potentialFunction(:,:,i)));
-    [row, col] = find( potentialFunction(:,:,i) >= maxPotential, 1, 'first' );
-    if maxPotential > bestMaxPotential
-        bestRow = row;
-        bestCol = col;
-        bestAngle = i;
-        bestMaxPotential = maxPotential;
-    end
-end % for
- 
+if showPlots
+    figure;
+    titlestringFunc = @(i) sprintf('desirabilityFunction: %d degrees', angles(i));
+    plotConfigurationSpace(potentialFunction, titlestringFunc);
+end % if showPlots
+
 % ----------------------------------------
-% Generate Best Wheelchair Configuration on Map
+% Choose Best Wheelchair Configuration on Map
 % ----------------------------------------
-if bestRow ~= -Inf
-    wheelChair = zeros(mapYSize,mapXSize);
-    wheelChair(bestRow,bestCol) = 1;
-    wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,bestAngle), 'same') ~= 0;
-    ( sum(totalMap(wheelChair) == 1) == 0 ) % no collisions
+[bestState, bestPotential] = chooseBestState(potentialFunction);
+noFeasibleStates = isempty(bestState);
+if ~noFeasibleStates 
+    if showPlots
+        plotState(bestState, wheelchairMaps, totalMap);
+    end % if showPlots
+else
+    disp('There are no feasible states =(');
 end
-
-% potentialFunction = visibleWeight + obstacleWeight;
-% imshow(potentialFunction,[]);
-
- 
-% ========================================
-% Plot 
-% ========================================
-% close all;
-% figure;
-% for i = 1:9
-%     subplot(3,3,i)
-%     x = zeros(size(feasibleStates,1),size(feasibleStates,2),3);
-%     x(:,:,1) = feasibleStates(:,:,i);
-%     x(:,:,3) = feasibleStates(:,:,i);
-%     imshow(x, [0 30])
-%     str = sprintf('Convolved at %d degrees', angles(i));
-%     title(str);
-% end
-% figure;
-% titlestringFunc = @(i) sprintf('feasibleStates: %d degrees', angles(i));
-% plotConfigurationSpace(feasibleStates, titlestringFunc);
-
-
-
-% hold on
-% p = pointCloud(pointsT');
-% showPointCloud(p);
-% showPointCloud(select(p, planeIndicies));
-
-
-% subplot(2,2,4)
-figure
-map3 = zeros(mapYSize, mapXSize);
-mapAndChair = wheelChair | totalMap;
-map3(:,:,1) = mapAndChair;
-map3(:,:,2) = wheelChair;
-map3(:,:,3) = totalMap;
-imshow(map3)
-str = sprintf('Chosen Wheelchair Parking Spot, %d to %d degrees', minAngle, maxAngle);
-title(str);
-
-figure;
-titlestringFunc = @(i) sprintf('desirabilityFunction: %d degrees', angles(i));
-plotConfigurationSpace(potentialFunction, titlestringFunc);

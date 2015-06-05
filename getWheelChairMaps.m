@@ -1,3 +1,4 @@
+% wheelchairMaps: numRows x numCols x numAngles cell array of (numRows x numCols) logical
 function wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, numRows, numCols)
     numAngles = size(wheelchairShapeAngle, 3);
     wheelchairMaps = cell(numRows, numCols, numAngles);

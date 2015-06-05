@@ -30,35 +30,29 @@ function measure = computePotential(wheelChair, totalMap, x, y, theta)
     % figure
     % imshow(wheelChair);
 
-    % TODO remove
-    collisions = (totalMap(wheelChair) == 1);
-    if any(collisions)
-        measure = -Inf;
-    else
-        % measure = sumSquaredClosestDistance(wheelChair, totalMap);
-        % [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
-        [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+    % measure = sumSquaredClosestDistance(wheelChair, totalMap);
+    % [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair, totalMap);
+    [measure, distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
 
-        % [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-        % [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-        % measure = measure + measure2;
-        
-        % [measure, distanceTransform] = minOrientedSideDist(wheelChair, totalMap, theta);
-        % [measure2, distanceTransform2] = minOrientedFrontDist(wheelChair, totalMap, theta);
-        % measure = measure + measure2;
+    % [measure, distanceTransform] = minSideDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+    % [measure2, distanceTransform2] = minFrontDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+    % measure = measure + measure2;
+    
+    % [measure, distanceTransform] = minOrientedSideDist(wheelChair, totalMap, theta);
+    % [measure2, distanceTransform2] = minOrientedFrontDist(wheelChair, totalMap, theta);
+    % measure = measure + measure2;
 
-        % pointsToPlot = (x == 70 & y == 50) | (x == 79 & y == 53);
-        % if pointsToPlot
-        %     figure
-        %     subplot(1,2,1)
-        %     imshow(distanceTransform, [0 30], 'Colormap', parula);
-        %     str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
-        %     title(str);
-        %     subplot(1,2,2)
-        %     imshow(totalMap, 'Colormap', parula);
-        %     title('Obstacle Map');
-        % end % if
-    end
+    % pointsToPlot = (x == 70 & y == 50) | (x == 79 & y == 53);
+    % if pointsToPlot
+    %     figure
+    %     subplot(1,2,1)
+    %     imshow(distanceTransform, [0 30], 'Colormap', parula);
+    %     str = sprintf('Potential Function for Wheelchair (x,y): (%d, %d)', x, y);
+    %     title(str);
+    %     subplot(1,2,2)
+    %     imshow(totalMap, 'Colormap', parula);
+    %     title('Obstacle Map');
+    % end % if
 end % function
 
 % Straight Quadratic
