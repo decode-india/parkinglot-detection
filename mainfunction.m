@@ -33,19 +33,27 @@
 % ========================================
 % New Point Cloud
 
+% Wall - Wall - Wall
 % imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-37-50/';
+% imgNumber = '00031';
 % imgNumber = '00001';
 
 % imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
 % imgNumber = '00111';
 
-% Table - Chair - Chair
 % imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-17-58.bag';
-% imgNumber = '00001';
+% imgNumber = '00001'; % Table - Chair - Chair
+% imgNumber = '00128'; % Table - Chair - Chair Close
+% imgNumber = '00220'; % Table - Chair - Chair Closer
+% imgNumber = '00522'; % Table - Chair - Chair Off-angle
+% imgNumber = '00568'; % Open Space
 
 % Table - Chair - Nothing
-% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-27-49.bag';
-% imgNumber = '00031';
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-28-59.bag';
+% imgNumber = '00098'; % cabinet and chair corner.
+
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
+% imgNumber = '00001';
 
 % Table - Wheelchair - Wheelchair
 imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
@@ -53,9 +61,13 @@ imgNumber = '00001';
 
 % Nothing - Wheelchair - Wheelchair
 % imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-47-32.bag';
-% imgNumber = '00001';
+% imgNumber = '00001'; % Nothing - Wheelchair - Wheelchair
+% imgNumber = '00086'; % large empty space
 
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-42-24.bag';
+% imgNumber = '00001'; % Table - WC - WC Large parking space
 
+% Process input files
 rgbFolder = fullfile(imgFolder, 'rgb');
 depthFolder = fullfile(imgFolder, 'depth');
 rgbFilePath = fullfile(rgbFolder, [imgNumber '.png']);
@@ -66,14 +78,29 @@ variableName = 'pointsXYZ';
 load(depthFilePath, variableName);
 pointcloudRaw = pointsXYZ;
 
-figure;
-subplot(2,1,1)
-imshow(imRgb)
-title('RGB Image');
-subplot(2,1,2)
-imshow(pointsXYZ(:,:,3), [])
-colormap(parula)
-title('Depth Image');
+% Output Folder
+[~, bagfilename, ~] = fileparts(imgFolder);
+outputFolder = '/home/vgan/code/experiments/parkinglot-detection-output';
+dateFolder = '20150728';
+saveFolder = fullfile(outputFolder, dateFolder, [bagfilename '_' imgNumber]);
+makeFolder(saveFolder);
+
+showPlots = true;
+if showPlots
+    figure;
+    subplot(1,2,1)
+    imshow(imRgb)
+    title('RGB Image');
+    imwrite(imRgb, fullfile(saveFolder, 'imRgb.png'));
+
+    subplot(1,2,2)
+    imDepth = pointsXYZ(:,:,3);
+    imshow(imDepth, [])
+    colormap(parula)
+    title('Depth Image');
+    imwrite(imDepth, parula, fullfile(saveFolder, 'imDepth.png'));
+    savefig(fullfile(saveFolder, 'rgb-depth-image.fig'));
+end % if showPlots
 
 % ========================================
 % Generate ground/object maps 
@@ -81,9 +108,6 @@ title('Depth Image');
 % ----------------------------------------
 % Process Point Cloud
 % ----------------------------------------
-% voxelGridSize = 2; % m
-% ransacParams.floorPlaneTolerance = 2; % tolerance in m
-% ransacParams.maxInclinationAngle = 30; % in degrees
 voxelGridSize = 0.01; % in metres
 ransacParams.floorPlaneTolerance = 0.02; % tolerance in m
 ransacParams.maxInclinationAngle = 30; % in degrees
@@ -94,9 +118,9 @@ ransacParams.maxInclinationAngle = 30; % in degrees
 % ----------------------------------------
 % groundMap: the visible ground
 % objectMap: what's occupied above ground
-MetresPerMapUnit = 0.05;    % each pixel represents grisStepMap metres
+metresPerMapUnit = 0.05;    % each pixel represents grisStepMap metres
 groundThreshold = 0.1; % in metres
-[objectMapHist, groundMapHist, origin] = pointCloudToObjectMap(pointCloudRotated, originPointcloud, MetresPerMapUnit, groundThreshold);
+[objectMapHist, groundMapHist, origin] = pointCloudToObjectMap(pointCloudRotated, originPointcloud, metresPerMapUnit, groundThreshold);
 [mapYSize,mapXSize] = size(objectMapHist);
 
 % ----------------------------------------
@@ -110,26 +134,30 @@ objectMap = imgaussfilt(objectMapHist, sigmaWall) ~= 0; % > 1 for noise robustne
 
 sigmaGround = 0.5;
 groundMap = imgaussfilt(groundMapHist, sigmaGround) ~= 0; 
-groundMap(objectMap) = 0;
+groundMap(objectMap) = false;
 
 % ASUS Xtion Pro has Minimum Depth Range. assume anything within 0.5m is viable.
-originDistMetres = 0.5;
-originDistMapUnits = originDistMetres/MetresPerMapUnit;
+originDistMetres = 1.0;
+originDistMapUnits = originDistMetres/metresPerMapUnit;
 viablePixels = circleAroundPoint(origin, mapYSize, mapXSize, originDistMapUnits);
 groundMap(viablePixels) = true;
+groundMap(objectMap) = false;
 
+overlaps = groundMap & objectMap;
+assert( sum(overlaps(:)) == 0, 'groundMap and objectMap are not mutually exclusive');
 unknownMap = ~groundMap & ~objectMap;
-showPlots = true;
+
 if showPlots
     figure;
     map = zeros(size(groundMap,1),size(groundMap,2),3);
     map(:,:,1) = objectMap;
-    map(:,:,2) = groundMap & ~objectMap;
+    map(:,:,2) = groundMap;
     map(:,:,3) = unknownMap;
+    map(origin(1),origin(2),:) = 0;
     imshow(map)
-    title('Occupancy Map (Magenta) and Visible Ground Plane (Green)');
-end
-totalMap = ~groundMap; % 0 if ground, 1 if nonground
+    title('Object Map (Red), Ground Map (Green), Unknown Map (Blue)');
+    imwrite(map, fullfile(saveFolder, 'objectGroundMap.png'));
+end % if showPlots
 
 % ========================================
 % Find a Good Wheelchair Configuration
@@ -138,10 +166,10 @@ totalMap = ~groundMap; % 0 if ground, 1 if nonground
 % Generate Wheelchair - TODO speed up
 % ----------------------------------------
 numAngles = 9;
-minAngle = -20;
-maxAngle = 20;
+minAngle  = -5; % degrees
+maxAngle  =  5; % degrees
 angles = linspace(minAngle, maxAngle, numAngles);
-% wheelchairsize = [41 31]; % make odd to use centre point as reference
+% wheelchairsize = [23 23]; % make odd to use centre point as reference
 wheelchairsize = [15 11]; % make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
 wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
@@ -149,30 +177,64 @@ wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
 % ----------------------------------------
 % Find Feasible Wheelchair Configurations
 % ----------------------------------------
-feasibleStates = zeros(mapYSize, mapXSize, numAngles);
-feasibleStates = findFeasibleStates(groundMap, wheelchairMaps, origin);
+feasibleStates = zeros(mapYSize, mapXSize, numAngles); % TODO Remove
+feasibleStates = findFeasibleStates(groundMap, wheelchairShapeAngle, origin);
 
 % ----------------------------------------
 % Find Wheelchair Configuration Potential Function
 % ----------------------------------------
-potentialFunction = zeros(mapYSize, mapXSize, numAngles);
-potentialFunction = findPotentialFunction(totalMap, origin, wheelchairMaps, angles, feasibleStates);
+statePotentials = zeros(mapYSize, mapXSize, numAngles); % TODO Remove
+statePotentials = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates);
 
 if showPlots
     figure;
     titlestringFunc = @(i) sprintf('desirabilityFunction: %d degrees', angles(i));
-    plotConfigurationSpace(potentialFunction, titlestringFunc);
+    plotConfigurationSpace(statePotentials, titlestringFunc);
+    savefig(fullfile(saveFolder, 'potential-function.fig'));
 end % if showPlots
 
 % ----------------------------------------
 % Choose Best Wheelchair Configuration on Map
 % ----------------------------------------
-[bestState, bestPotential] = chooseBestState(potentialFunction);
-noFeasibleStates = isempty(bestState);
+[chosenState, bestPotential] = chooseBestState(statePotentials);
+noFeasibleStates = isempty(chosenState);
 if ~noFeasibleStates 
     if showPlots
-        plotState(bestState, wheelchairMaps, totalMap);
+        plotState(chosenState, wheelchairMaps, ~groundMap);
+        savefig(fullfile(saveFolder, 'final-position-map.fig'));
     end % if showPlots
 else
     disp('There are no feasible states =(');
 end
+
+% ----------------------------------------
+% Plot in Point Cloud
+% ----------------------------------------
+if showPlots
+    figure;
+
+    % Plot Pointcloud
+    titleString = 'Rotated relative to Ground';
+    plotPointCloud(pointCloudRotated, titleString);
+    hold on;
+
+    % Plot Wheelchair
+    green = [0 1 0];
+    wheelChair = wheelchairMaps{chosenState(1), chosenState(2), chosenState(3)};
+    wheelChairDepths = 0:metresPerMapUnit:0.8;
+    plotMapInPointcloud(wheelChair, pointCloudRotated, metresPerMapUnit, green, wheelChairDepths);
+
+    % Plot Ground and Object Map
+    groundMapDepth = -1.0;
+    blue = [0 0 1];
+    plotMapInPointcloud(groundMap, pointCloudRotated, metresPerMapUnit, blue, groundMapDepth);
+    red = [1 0 0];
+    plotMapInPointcloud(objectMap, pointCloudRotated, metresPerMapUnit, red, groundMapDepth);
+
+    % Plot Feasible States
+    feasibleStatesDepth = -2.0;
+    green = [0 1 0];
+    plotMapInPointcloud(feasibleStates(:,:,chosenState(3)), pointCloudRotated, metresPerMapUnit, green, feasibleStatesDepth);
+
+    savefig(fullfile(saveFolder, 'final-position.fig'));
+end % if showPlots

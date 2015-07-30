@@ -15,14 +15,14 @@ function [objectMap, groundMap, originMap] = pointCloudToObjectMap(pCloud, origi
     % ----------------------------------------
     objectMap = zeros(yLength, xLength);
     groundMap = zeros(yLength, xLength);
+    points = pCloud.Location;
     for p = 1:pCloud.Count
-        point = pCloud.Location(p,:);
 
         % find histogram bin
-        [yBox, xBox] = XYZtoXY(point, xScale, yScale);
+        [yBox, xBox] = XYZtoXY(points(p,:), xScale, yScale);
 
         % classify pixel
-        isGroundPixel = abs(point(3)) < groundThreshold;
+        isGroundPixel = abs(points(p,3)) < groundThreshold;
         if isGroundPixel
             groundMap(yBox,xBox) = groundMap(yBox,xBox) + 1; 
         % TODO if isAbove3metres, classify as roof

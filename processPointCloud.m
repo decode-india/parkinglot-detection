@@ -37,41 +37,21 @@ function [pointCloudRotated, newOrigin] = processPointCloud(pointcloudRaw, voxel
     if showPlots
 
         figure;
-        subplot(2,1,1)
+        subplot(1,3,1)
+        titleString = 'Raw Point Cloud';
+        plotPointCloud(pointcloudRaw, titleString);
+
+        subplot(1,3,2)
         titleString = 'Voxelized Point Cloud with Ground Plane';
         plotPointCloud(pointCloudVoxeled, titleString);
         plotPlaneAroundPointCloud(updatedPlane, pointCloudVoxeled);
 
-        subplot(2,1,2)
+        subplot(1,3,3)
         titleString = 'Rotated relative to Ground';
         plotPointCloud(pointCloudRotated, titleString);
 
     end % if
 end % function
-
-function plotPlaneAroundPointCloud(plane, pointCloudObj)
-    p = pointCloudObj;
-    a = plane(1);
-    b = plane(2);
-    c = plane(3);
-    d = plane(4);
-    numTicks = 100;
-    xScale = linspace(p.XLimits(1),p.XLimits(2), numTicks);
-    yScale = linspace(p.YLimits(1),p.YLimits(2), numTicks);
-    zScale = linspace(p.ZLimits(1),p.ZLimits(2), numTicks);
-    [xx,yy,zz] = meshgrid(xScale, yScale, zScale);
-    isosurface(xx, yy, zz, a*xx+b*yy+c*zz+d, 0)
-end % function
-
-function plotPointCloud(pointCloudObj, titleString)
-    showPointCloud(pointCloudObj);
-    colormap(parula)
-    title(titleString);
-    xlabel('X');
-    ylabel('Y');
-    zlabel('Z');
-    axis equal;
-end %function
 
 % Needed to get positive Y values
 % points: mx3 matrix of points

@@ -1,17 +1,22 @@
 % Find the desirability for each configuration
-function [measureAll] = findPotentialFunction(totalMap, origin, wheelchairMaps, angles, feasibleStates)
-    [numRows,numCols] = size(totalMap);
-    numAngles = size(angles, 2);
+function [measureAll] = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates)
+    [numRows,numCols] = size(groundMap);
+    numAngles = size(wheelchairMaps, 3);
+
+    unknownMap = ~groundMap & ~objectMap;
+    totalMap = ~groundMap;
     
     measureAll = zeros(numRows,numCols,numAngles);
     for thetaIdx = 1:numAngles
-        thetaIdx
     for r = 1:numRows
     for c = 1:numCols
         if ~feasibleStates(r,c,thetaIdx)
             measureAll(r,c,thetaIdx) = -Inf;
         else
-            measureAll(r,c,thetaIdx) = computePotential(wheelchairMaps{r,c,thetaIdx}, totalMap, c, r, angles(thetaIdx));
+            wheelChair = wheelchairMaps{r,c,thetaIdx};
+            % [measureAll(r,c,thetaIdx), distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
+            [measureAll(r,c,thetaIdx), distanceTransform] = sumSquaredClosestDistance2(wheelChair, groundMap, objectMap);
+            % measureAll(r,c,thetaIdx) = sumSquaredClosestDistance(wheelChair, totalMap);
         end % if
     end % for
     end % for
@@ -90,6 +95,21 @@ function [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair
     % figure
     % imshow(distanceTransform, [], 'Colormap', parula);
 end
+
+function [measure, distanceTransform] = sumSquaredClosestDistance2(wheelChair, groundMap, objectMap)
+    mapAndChair = wheelChair | objectMap;
+    mapAndChair = gpuArray(mapAndChair);
+    % figure
+    % imshow(mapAndChair);
+
+    distanceTransform = bwdist(mapAndChair).^2; % distance to closest edge, square to bias large gaps
+    % figure
+    % imshow(distanceTransform, [], 'Colormap', jet(255));
+
+    % normalize by number of pixels TODO
+    measure = sum(distanceTransform(:)) / nnz(distanceTransform);
+    measure = double(gather(measure));
+end % function
 
 % wheelChair: nxm array, ones with wheelchair position, 0 without
 % totalMap: nxm array, ones with obstacle position, 0 without

@@ -9,5 +9,6 @@ function [wheelchairShapeAngle] = makeWheelchairShape(wheelchairsize, angles)
     wheelchairShapeAngle = zeros(size(wheelchairShape,1),size(wheelchairShape,2),numAngles);
     for i = 1:numAngles
         wheelchairShapeAngle(:,:,i) = imrotate(wheelchairShape, angles(i), 'bicubic', 'crop');
+        wheelchairShapeAngle(:,:,i) = wheelchairShapeAngle(:,:,i) ~= 0; % binarize
     end % for
 end % function

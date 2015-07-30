@@ -63,13 +63,13 @@ minTolWall = deg2rad(maxInclinationAngle);
 maxTolWall = deg2rad(180 - maxInclinationAngle);
   
   % max number of tentative
-  tentative_num = 200;
+  numIterations = 200;
   
   % cut points
   points = points(:,points(2,:)<0);
   pointsHom = [points; ones(1,size(points,2))];
   
-  if size(points,2) < tentative_num * 3
+  if size(points,2) < numIterations * 3
     best_plane = [];
     best_count = 0;
     return;
@@ -84,7 +84,7 @@ maxTolWall = deg2rad(180 - maxInclinationAngle);
   indicies = [];
   collinearityThreshold = sin(0.1*pi/180);
     
-  while tentative_num>0 
+  while numIterations>0 
     
     % randomly select 3 points
     idxs = randperm(size(points,2),3);
@@ -136,7 +136,7 @@ maxTolWall = deg2rad(180 - maxInclinationAngle);
 %       break
 %     end
     
-    tentative_num = tentative_num - 1;
+    numIterations = numIterations - 1;
        
   end
   
