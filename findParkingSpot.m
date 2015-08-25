@@ -82,7 +82,6 @@ function [pointCloudRotated] = findParkingSpot(pointcloudRaw, saveFolder)
     % wheelchairsize = [23 23]; % make odd to use centre point as reference
     wheelchairsize = [15 11]; % make odd to use centre point as reference
     wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
-    wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
 
     % ----------------------------------------
     % Find Feasible Wheelchair Configurations
@@ -93,6 +92,7 @@ function [pointCloudRotated] = findParkingSpot(pointcloudRaw, saveFolder)
     % Find Wheelchair Configuration Potential Function
     % ----------------------------------------
     statePotentials = zeros(mapYSize, mapXSize, numAngles); % TODO Remove
+    wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
     statePotentials = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates);
 
     if showPlots

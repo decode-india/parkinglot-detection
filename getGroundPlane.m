@@ -1,4 +1,4 @@
-function [best_plane, indicies] = getGroundPlane( points, maxInclinationAngle, tol )
+function [best_plane, indicies, no_best_plane] = getGroundPlane( points, maxInclinationAngle, tol )
 %GETGROUNDPLANE Takes a struct voxelGrid as obtained from createVoxelStruct and returns the parameters of
 %the plane which most probably is the ground plane, following the RANSAC
 %plane fitting algorithm
@@ -56,6 +56,7 @@ if noToleranceInput
     tol = 1e-6; % tol = 2; % distance in mm from plane
 end
 
+no_best_plane = true;
 % variables subsequently used to determine if a vector can be the normal
 % to the ground plane or not (if not they probably are a wall). They are 
 % set according to the maxInclinationAngle of the camera.
@@ -72,6 +73,8 @@ maxTolWall = deg2rad(180 - maxInclinationAngle);
   if size(points,2) < numIterations * 3
     best_plane = [];
     best_count = 0;
+    indicies = [];
+    % no best plane found
     return;
   end
   
@@ -126,6 +129,7 @@ maxTolWall = deg2rad(180 - maxInclinationAngle);
       best_count = count;
       best_plane = plane;
       indicies = find(pointsThatLieOnPlane);
+      no_best_plane = false;
     end
 
 %     if best_count >= thresholdCount
@@ -138,6 +142,9 @@ maxTolWall = deg2rad(180 - maxInclinationAngle);
     
     numIterations = numIterations - 1;
        
+  end
+  if no_best_plane
+    % no best plane found
   end
   
   if best_plane(2) < 0

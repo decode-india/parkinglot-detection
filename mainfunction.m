@@ -41,8 +41,8 @@
 % imgFolder = '/home/vgan/code/datasets/gan2015wheelchair/2015-03-22-16-41-16/';
 % imgNumber = '00111';
 
-% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-17-58.bag';
-% imgNumber = '00001'; % Table - Chair - Chair
+imgFolder = '/media/vgan/stashpile1/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-17-58.bag';
+imgNumber = '00001'; % Table - Chair - Chair
 % imgNumber = '00128'; % Table - Chair - Chair Close
 % imgNumber = '00220'; % Table - Chair - Chair Closer
 % imgNumber = '00522'; % Table - Chair - Chair Off-angle
@@ -56,8 +56,8 @@
 % imgNumber = '00001';
 
 % Table - Wheelchair - Wheelchair
-imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
-imgNumber = '00001';
+% imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-39-27.bag';
+% imgNumber = '00001';
 
 % Nothing - Wheelchair - Wheelchair
 % imgFolder = '/media/vgan/stashpile/datasets/gan2015wheelchair/2015-04-28-chairtables/matlab_extract/2015-05-28-23-47-32.bag';
@@ -172,7 +172,6 @@ angles = linspace(minAngle, maxAngle, numAngles);
 % wheelchairsize = [23 23]; % make odd to use centre point as reference
 wheelchairsize = [15 11]; % make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
-wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
 
 % ----------------------------------------
 % Find Feasible Wheelchair Configurations
@@ -183,8 +182,14 @@ feasibleStates = findFeasibleStates(groundMap, wheelchairShapeAngle, origin);
 % ----------------------------------------
 % Find Wheelchair Configuration Potential Function
 % ----------------------------------------
-statePotentials = zeros(mapYSize, mapXSize, numAngles); % TODO Remove
+wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
 statePotentials = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates);
+
+% halfPaddingHeight = floor( (numRows - wheelchairsize(1))/2 - 1 ) + 1;
+% halfPaddingWidth  = floor( (numCols - wheelchairsize(2))/2 - 1 ) + 1;
+halfPaddingHeight = numRows;
+halfPaddingWidth  = numCols;
+wheelchairShapeAngleBig = makeWheelchairShape(wheelchairsize, angles, [halfPaddingHeight, halfPaddingWidth]);
 
 if showPlots
     figure;
