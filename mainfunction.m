@@ -81,7 +81,7 @@ pointcloudRaw = pointsXYZ;
 % Output Folder
 [~, bagfilename, ~] = fileparts(imgFolder);
 outputFolder = '/home/vgan/code/experiments/parkinglot-detection-output';
-dateFolder = '20150728';
+dateFolder = '20150826';
 saveFolder = fullfile(outputFolder, dateFolder, [bagfilename '_' imgNumber]);
 makeFolder(saveFolder);
 

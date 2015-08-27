@@ -37,9 +37,9 @@ function [M_final, Minv_final, R_final, T_final, no_best_plane] = processPointCl
         R_final = rot * R_aboutZ;
         T_final = T;
     else
-        M = eye(4);
-        Minv = M;
-        rot = eye(3);
-        T = [0;0;0];
+        M_final = eye(4);
+        Minv_final = M;
+        R_final = eye(3);
+        T_final = [0;0;0];
     end
 end

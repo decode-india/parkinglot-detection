@@ -42,7 +42,7 @@ function [pointCloudRotated, newOrigin, R_final, T_final] = processPointCloud(po
     % ----------------------------------------
     % Plot
     % ----------------------------------------
-    showPlots = false;
+    showPlots = true;
     if showPlots
  
         figure(3);

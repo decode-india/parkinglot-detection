@@ -1,9 +1,10 @@
-function [pointCloudRotated] = findParkingSpot(pointcloudRaw, saveFolder)
+function [chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround] = findParkingSpot(pointcloudRaw, saveFolder)
+    makeFolder(saveFolder);
 
     % ----------------------------------------
     % Show RGBD Images
     % ----------------------------------------
-    showPlots = true;
+    showPlots = false;
     if showPlots
         figure
         imDepth = pointcloudRaw(:,:,3);
@@ -20,7 +21,7 @@ function [pointCloudRotated] = findParkingSpot(pointcloudRaw, saveFolder)
     voxelGridSize = 0.05; % in metres
     ransacParams.floorPlaneTolerance = 0.02; % tolerance in m
     ransacParams.maxInclinationAngle = 30; % in degrees
-    [pointCloudRotated, originPointcloud] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams);
+    [pointCloudRotated, originPointcloud, R_OpticToGround, T_OpticToGround] = processPointCloud(pointcloudRaw, voxelGridSize, ransacParams);
 
     % ----------------------------------------
     % Point Cloud to Ground and Object Map
@@ -101,5 +102,55 @@ function [pointCloudRotated] = findParkingSpot(pointcloudRaw, saveFolder)
         plotConfigurationSpace(statePotentials, titlestringFunc);
         savefig(fullfile(saveFolder, 'potential-function.fig'));
     end % if showPlots
+
+    % ----------------------------------------
+    % Choose Best Wheelchair Configuration on Map
+    % ----------------------------------------
+    [chosenState, bestPotential] = chooseBestState(statePotentials);
+    noFeasibleStates = isempty(chosenState);
+    if ~noFeasibleStates 
+        if showPlots
+            plotState(chosenState, wheelchairMaps, ~groundMap);
+            savefig(fullfile(saveFolder, 'final-position-map.fig'));
+        end % if showPlots
+    else
+        disp('There are no feasible states =(');
+    end
+
+    chosenStateMap = false(mapYSize, mapXSize); 
+    chosenStateMap(chosenState(1), chosenState(2)) = true;
+    xScale = pointCloudRotated.XLimits(1):metresPerMapUnit:pointCloudRotated.XLimits(2);
+    yScale = pointCloudRotated.YLimits(1):metresPerMapUnit:pointCloudRotated.YLimits(2);
+    [chosenStateWorldX, chosenStateWorldY] = pixelsToPoints(chosenStateMap, xScale, yScale);
+    % ----------------------------------------
+    % Plot in Point Cloud
+    % ----------------------------------------
+    if showPlots
+        figure;
+
+        % Plot Pointcloud
+        titleString = 'Rotated relative to Ground';
+        plotPointCloud(pointCloudRotated, titleString);
+        hold on;
+
+        % Plot Wheelchair
+        green = [0 1 0];
+        wheelChair = wheelchairMaps{chosenState(1), chosenState(2), chosenState(3)};
+        wheelChairDepths = 0:metresPerMapUnit:0.8;
+        plotMapInPointcloud(wheelChair, pointCloudRotated, metresPerMapUnit, green, wheelChairDepths);
+
+        % Plot Ground and Object Map
+        groundMapDepth = -1.0;
+        blue = [0 0 1];
+        plotMapInPointcloud(groundMap, pointCloudRotated, metresPerMapUnit, blue, groundMapDepth);
+        red = [1 0 0];
+        plotMapInPointcloud(objectMap, pointCloudRotated, metresPerMapUnit, red, groundMapDepth);
+
+        % Plot Feasible States
+        feasibleStatesDepth = -2.0;
+        green = [0 1 0];
+        plotMapInPointcloud(feasibleStates(:,:,chosenState(3)), pointCloudRotated, metresPerMapUnit, green, feasibleStatesDepth);
+
+        savefig(fullfile(saveFolder, 'final-position.fig'));
 
 end % function
