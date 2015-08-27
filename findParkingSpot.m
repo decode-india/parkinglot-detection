@@ -4,7 +4,7 @@ function [chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround
     % ----------------------------------------
     % Show RGBD Images
     % ----------------------------------------
-    showPlots = false;
+    showPlots = true;
     if showPlots
         figure
         imDepth = pointcloudRaw(:,:,3);

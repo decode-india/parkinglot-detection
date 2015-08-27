@@ -26,4 +26,8 @@ clear('tftree')
 pointCloudMsgOptic.PreserveStructureOnRead = true;
 xyzOptic = readXYZ(pointCloudMsgOptic);
 
-[chosenStateWorldX, chosenStateWorldY] = findParkingSpot(xyzOptic, saveFolder);
+[chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround] = findParkingSpot(xyzOptic, saveFolder);
+
+    R_OdomToGround = R_OpticToGround*R_OdomToOptic;
+    T_OdomToGround = T_OpticToGround+T_OdomToOptic;
+
