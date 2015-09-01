@@ -96,7 +96,7 @@ function [chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround
     halfPaddingWidth = (mapXSize - 1) - (wheelchairsize(2)-1)/2;
     wheelchairShapeAngleBig = makeWheelchairShape(wheelchairsize, angles, [halfPaddingHeight, halfPaddingWidth]);
     % statePotentials = findPotentialFunction(objectMap, wheelchairShapeAngleBig, feasibleStates);
-    statePotentials = findPotentialFunction2(wheelchairShapeAngleBig, objectMap, feasibleStates);
+    statePotentials = findPotentialFunction2NoGpu(wheelchairShapeAngleBig, objectMap, feasibleStates);
 
     if showPlots
         figure;
