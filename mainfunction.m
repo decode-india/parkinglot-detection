@@ -81,7 +81,7 @@ pointcloudRaw = pointsXYZ;
 % Output Folder
 [~, bagfilename, ~] = fileparts(imgFolder);
 outputFolder = '/home/vgan/code/experiments/parkinglot-detection-output';
-dateFolder = '20150826';
+dateFolder = '20150830';
 saveFolder = fullfile(outputFolder, dateFolder, [bagfilename '_' imgNumber]);
 makeFolder(saveFolder);
 
@@ -118,7 +118,7 @@ ransacParams.maxInclinationAngle = 30; % in degrees
 % ----------------------------------------
 % groundMap: the visible ground
 % objectMap: what's occupied above ground
-metresPerMapUnit = 0.05;    % each pixel represents grisStepMap metres
+metresPerMapUnit = 0.01;    % each pixel represents grisStepMap metres
 groundThreshold = 0.1; % in metres
 [objectMapHist, groundMapHist, origin] = pointCloudToObjectMap(pointCloudRotated, originPointcloud, metresPerMapUnit, groundThreshold);
 [mapYSize,mapXSize] = size(objectMapHist);
@@ -157,6 +157,7 @@ if showPlots
     imshow(map)
     title('Object Map (Red), Ground Map (Green), Unknown Map (Blue)');
     imwrite(map, fullfile(saveFolder, 'objectGroundMap.png'));
+    imwrite(objectMap, fullfile(saveFolder, 'objectMap.png'));
 end % if showPlots
 
 % ========================================
@@ -170,7 +171,7 @@ minAngle  = -5; % degrees
 maxAngle  =  5; % degrees
 angles = linspace(minAngle, maxAngle, numAngles);
 % wheelchairsize = [23 23]; % make odd to use centre point as reference
-wheelchairsize = [15 11]; % make odd to use centre point as reference
+wheelchairsize = [15 11]; % [y x] make odd to use centre point as reference
 wheelchairShapeAngle = makeWheelchairShape(wheelchairsize, angles);
 
 % ----------------------------------------
@@ -182,14 +183,13 @@ feasibleStates = findFeasibleStates(groundMap, wheelchairShapeAngle, origin);
 % ----------------------------------------
 % Find Wheelchair Configuration Potential Function
 % ----------------------------------------
-wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
-statePotentials = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates);
-
-% halfPaddingHeight = floor( (numRows - wheelchairsize(1))/2 - 1 ) + 1;
-% halfPaddingWidth  = floor( (numCols - wheelchairsize(2))/2 - 1 ) + 1;
-halfPaddingHeight = numRows;
-halfPaddingWidth  = numCols;
+% |<--          mapXsize-1          -->|1|<--          mapXsize-1          -->|
+% |<-- halfPaddingWidth -->|<-- wheelchairsize(2) -->|<-- halfPaddingWidth -->|
+halfPaddingHeight = (mapYSize - 1) - (wheelchairsize(1)-1)/2;
+halfPaddingWidth = (mapXSize - 1) - (wheelchairsize(2)-1)/2;
 wheelchairShapeAngleBig = makeWheelchairShape(wheelchairsize, angles, [halfPaddingHeight, halfPaddingWidth]);
+% statePotentials = findPotentialFunction(objectMap, wheelchairShapeAngleBig, feasibleStates);
+statePotentials = findPotentialFunction2(wheelchairShapeAngleBig, objectMap, feasibleStates);
 
 if showPlots
     figure;
@@ -205,7 +205,7 @@ end % if showPlots
 noFeasibleStates = isempty(chosenState);
 if ~noFeasibleStates 
     if showPlots
-        plotState(chosenState, wheelchairMaps, ~groundMap);
+        plotState(chosenState, wheelchairShapeAngle, ~groundMap);
         savefig(fullfile(saveFolder, 'final-position-map.fig'));
     end % if showPlots
 else
@@ -225,7 +225,10 @@ if showPlots
 
     % Plot Wheelchair
     green = [0 1 0];
-    wheelChair = wheelchairMaps{chosenState(1), chosenState(2), chosenState(3)};
+    wheelChair = zeros(mapYSize, mapXSize);
+    wheelChair(chosenState(1),chosenState(2)) = 1;
+    wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,chosenState(3)), 'same');
+    wheelChair = wheelChair ~= 0;
     wheelChairDepths = 0:metresPerMapUnit:0.8;
     plotMapInPointcloud(wheelChair, pointCloudRotated, metresPerMapUnit, green, wheelChairDepths);
 

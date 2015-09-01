@@ -92,9 +92,10 @@ function [chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround
     % ----------------------------------------
     % Find Wheelchair Configuration Potential Function
     % ----------------------------------------
-    statePotentials = zeros(mapYSize, mapXSize, numAngles); % TODO Remove
-    wheelchairMaps = getWheelChairMaps(wheelchairShapeAngle, mapYSize, mapXSize);
-    statePotentials = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates);
+    halfPaddingHeight = (mapYSize - 1) - (wheelchairsize(1)-1)/2;
+    halfPaddingWidth = (mapXSize - 1) - (wheelchairsize(2)-1)/2;
+    wheelchairShapeAngleBig = makeWheelchairShape(wheelchairsize, angles, [halfPaddingHeight, halfPaddingWidth]);
+    statePotentials = findPotentialFunction(objectMap, wheelchairShapeAngleBig, feasibleStates);
 
     if showPlots
         figure;
@@ -110,7 +111,7 @@ function [chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround
     noFeasibleStates = isempty(chosenState);
     if ~noFeasibleStates 
         if showPlots
-            plotState(chosenState, wheelchairMaps, ~groundMap);
+            plotState(chosenState, wheelchairShapeAngle, ~groundMap);
             savefig(fullfile(saveFolder, 'final-position-map.fig'));
         end % if showPlots
     else
@@ -135,7 +136,11 @@ function [chosenStateWorldX, chosenStateWorldY, R_OpticToGround, T_OpticToGround
 
         % Plot Wheelchair
         green = [0 1 0];
-        wheelChair = wheelchairMaps{chosenState(1), chosenState(2), chosenState(3)};
+
+        wheelChair = zeros(mapYSize, mapXSize);
+        wheelChair(chosenState(1),chosenState(2)) = 1;
+        wheelChair = conv2(wheelChair, wheelchairShapeAngle(:,:,chosenState(3)), 'same');
+        wheelChair = wheelChair ~= 0;
         wheelChairDepths = 0:metresPerMapUnit:0.8;
         plotMapInPointcloud(wheelChair, pointCloudRotated, metresPerMapUnit, green, wheelChairDepths);
 

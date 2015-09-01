@@ -1,11 +1,9 @@
 % Find the desirability for each configuration
-function [measureAll] = findPotentialFunction(groundMap, objectMap, wheelchairMaps, feasibleStates)
-    [numRows,numCols] = size(groundMap);
-    numAngles = size(wheelchairMaps, 3);
+function [measureAll] = findPotentialFunction(objectMap, wheelchairShapeAngleBig, feasibleStates)
+    [numRows,numCols] = size(objectMap);
+    % wheelchairMaps = getWheelChairMaps(wheelchairShapeAngleBig, numRows, numCols);
+    numAngles = size(wheelchairShapeAngleBig, 3);
 
-    unknownMap = ~groundMap & ~objectMap;
-    totalMap = ~groundMap;
-    
     measureAll = zeros(numRows,numCols,numAngles);
     for thetaIdx = 1:numAngles
     for r = 1:numRows
@@ -13,9 +11,12 @@ function [measureAll] = findPotentialFunction(groundMap, objectMap, wheelchairMa
         if ~feasibleStates(r,c,thetaIdx)
             measureAll(r,c,thetaIdx) = -Inf;
         else
-            wheelChair = wheelchairMaps{r,c,thetaIdx};
+            [rLow, rHigh] = getIndicies(r, numRows);
+            [cLow, cHigh] = getIndicies(c, numCols);
+            wheelChair = wheelchairShapeAngleBig(rLow:rHigh, cLow:cHigh, thetaIdx);
+            % wheelChair = wheelchairMaps{r,c,thetaIdx};
             % [measureAll(r,c,thetaIdx), distanceTransform] = minDistBetweenWheelchairAndObstacles(wheelChair, totalMap);
-            [measureAll(r,c,thetaIdx), distanceTransform] = sumSquaredClosestDistance2(wheelChair, groundMap, objectMap);
+            [measureAll(r,c,thetaIdx), distanceTransform] = sumSquaredClosestDistance2(wheelChair, objectMap);
             % measureAll(r,c,thetaIdx) = sumSquaredClosestDistance(wheelChair, totalMap);
         end % if
     end % for
@@ -96,7 +97,7 @@ function [measure, distanceTransform] = sumSquaredClosestDistanceFlat(wheelChair
     % imshow(distanceTransform, [], 'Colormap', parula);
 end
 
-function [measure, distanceTransform] = sumSquaredClosestDistance2(wheelChair, groundMap, objectMap)
+function [measure, distanceTransform] = sumSquaredClosestDistance2(wheelChair, objectMap)
     mapAndChair = wheelChair | objectMap;
     mapAndChair = gpuArray(mapAndChair);
     % figure

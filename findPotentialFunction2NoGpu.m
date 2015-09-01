@@ -1,17 +1,14 @@
-function [qualityFunction] = findPotentialFunction2(wheelchairShapeAngleBig, objectMap, feasibleStates)
+function [qualityFunction] = findPotentialFunction2NoGpu(wheelchairShapeAngleBig, objectMap, feasibleStates)
     [numRows,numCols] = size(objectMap);
     numAngles = size(wheelchairShapeAngleBig, 3);
 
-    objectMap = gpuArray(objectMap);
     objectDistTF = bwdist(objectMap, 'euclidean').^2; % distance to closest edge, square to bias large gaps
     wheelchairDistTF = bwdist(wheelchairShapeAngleBig ~= 0, 'euclidean').^2; % distance to closest edge, square to bias large gaps
-    wheelchairDistTF = gpuArray(wheelchairDistTF);
 
     measureAll = zeros(numRows,numCols,numAngles);
     for thetaIdx = 1:numAngles
     for r = 1:numRows
     for c = 1:numCols
-        % [thetaIdx r c]
         if ~feasibleStates(r,c,thetaIdx)
             measureAll(r,c,thetaIdx) = -Inf;
         else
@@ -23,7 +20,6 @@ function [qualityFunction] = findPotentialFunction2(wheelchairShapeAngleBig, obj
             nnzwcAndObjectTF = nnz(wcAndObjectTF);
             wcAndObjectTF = sum(wcAndObjectTF(:));
             wcAndObjectTF = wcAndObjectTF ./ nnzwcAndObjectTF;
-            measureAll(r,c,thetaIdx) = gather(wcAndObjectTF);
         end
     end % for
     end
@@ -42,17 +38,3 @@ function [qualityFunction] = findPotentialFunction2(wheelchairShapeAngleBig, obj
     qualityFunction = gather(measureAll);
 
 end % function
-
-function [freeSpaceQuality] = getDistTransformSum(r, c, thetaIdx, wheelchairDistTF, objectDistTF, feasibleStates);
-    [numRows,numCols] = size(objectDistTF);
-    if ~feasibleStates(r,c,thetaIdx)
-        freeSpaceQuality = -Inf;
-    else
-        [rLow, rHigh] = getIndicies(r, numRows);
-        [cLow, cHigh] = getIndicies(c, numCols);
-        wheelchairDistTFLocal = wheelchairDistTF(rLow:rHigh, cLow:cHigh, thetaIdx);
-        wcAndObjectTF = min(objectDistTF,wheelchairDistTFLocal);
-        freeSpaceQuality = sum(sum(wcAndObjectTF.^2)) / nnz(wcAndObjectTF);
-    end
-end % function
-
